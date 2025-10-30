@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@vicons/tabler": "^0.13.0",
     "@vueuse/core": "^10.11.0",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-vue": "^5.1.12",
@@ -50,6 +51,7 @@
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^3.2.1",
+    "qrcode": "^1.5.4",
     "qs": "^6.12.1",
     "screenfull": "^6.0.2",
     "sortablejs": "^1.15.2",
@@ -79,6 +81,7 @@
     "eslint-plugin-vue": "^9.26.0",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.5",
+    "naive-ui": "^2.41.0",
     "postcss": "^8.4.38",
     "postcss-html": "^1.7.0",
     "prettier": "^3.3.2",

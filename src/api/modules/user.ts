@@ -1,7 +1,13 @@
 import { ResPage, User } from "@/api/interface/index";
 import { PORT1 } from "@/api/config/servicePort";
 import http from "@/api";
-
+/**
+ * @name NEW API
+ */
+// 获取用户详情
+export const getUserDetail = (params: { id: string }) => {
+  return http.get<User.ResUserDetail>(PORT1 + `/user/detail`, params);
+};
 /**
  * @name 用户管理模块
  */

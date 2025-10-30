@@ -1,5 +1,5 @@
 import { Table } from "./interface";
-import { reactive, computed, toRefs } from "vue";
+import { reactive, computed, toRefs,onMounted,watchEffect } from "vue";
 
 /**
  * @description table 页面操作方法封装
@@ -9,7 +9,7 @@ import { reactive, computed, toRefs } from "vue";
  * @param {Function} dataCallBack 对后台返回的数据进行处理的方法 (非必传)
  * */
 export const useTable = (
-  api?: (params: any) => Promise<any>,
+  api: Function,
   initParam: object = {},
   isPageable: boolean = true,
   dataCallBack?: (data: any) => any,
@@ -86,7 +86,7 @@ export const useTable = (
         nowSearchParam[key] = state.searchParam[key];
       }
     }
-    Object.assign(state.totalParam, nowSearchParam);
+    Object.assign(state.totalParam, nowSearchParam, isPageable ? pageParam.value : {});
   };
 
   /**
@@ -142,3 +142,4 @@ export const useTable = (
     updatedTotalParam
   };
 };
+

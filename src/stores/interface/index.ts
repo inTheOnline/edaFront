@@ -53,6 +53,10 @@ export interface AuthState {
   authButtonList: {
     [key: string]: string[];
   };
+  // 个人信息以及权限标识信息对象
+  userInfo: {
+    powers: string[];
+  };
   authMenuList: Menu.MenuOptions[];
 }
 

@@ -1,5 +1,6 @@
 import { isArray } from "@/utils/is";
 import { FieldNamesProps } from "@/components/ProTable/interface";
+import { useAuthStore } from "@/stores/modules/auth";
 
 const mode = import.meta.env.VITE_ROUTER_MODE;
 
@@ -161,11 +162,20 @@ export function getFlatMenuList(menuList: Menu.MenuOptions[]): Menu.MenuOptions[
  * @param {Array} menuList 菜单列表
  * @returns {Array}
  * */
+// export function getShowMenuList(menuList: Menu.MenuOptions[]) {
+//   let newMenuList: Menu.MenuOptions[] = JSON.parse(JSON.stringify(menuList));
+//   return newMenuList.filter(item => {
+//     item.children?.length && (item.children = getShowMenuList(item.children));
+//     return !item.meta?.isHide;
+//   });
+// }
+//让左侧菜单栏只渲染有权限的菜单（我加的）
 export function getShowMenuList(menuList: Menu.MenuOptions[]) {
+  const authStore = useAuthStore();
   let newMenuList: Menu.MenuOptions[] = JSON.parse(JSON.stringify(menuList));
   return newMenuList.filter(item => {
     item.children?.length && (item.children = getShowMenuList(item.children));
-    return !item.meta?.isHide;
+    return !item.meta?.isHide && authStore.userInfoGet.powers.includes(item.meta.roles);
   });
 }
 

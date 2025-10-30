@@ -1,26 +1,32 @@
 // 请求响应参数（不包含data）
 export interface Result {
   code: string;
-  msg: string;
+  message: string;
 }
 
 // 请求响应参数（包含data）
 export interface ResultData<T = any> extends Result {
   data: T;
 }
-
+export interface PageResult<T = any> extends Result {
+  data: T[];
+}
 // 分页响应参数
 export interface ResPage<T> {
-  list: T[];
+  records: T[];
   pageNum: number;
   pageSize: number;
   total: number;
 }
 
+
 // 分页请求参数
 export interface ReqPage {
   pageNum: number;
   pageSize: number;
+}
+export interface ReqPageT<T = any>extends ReqPage{
+  data:T;
 }
 
 // 文件上传模块
@@ -33,14 +39,30 @@ export namespace Upload {
 // 登录模块
 export namespace Login {
   export interface ReqLoginForm {
-    username: string;
+    userName: string;
     password: string;
   }
   export interface ResLogin {
-    access_token: string;
+    token: string;
   }
   export interface ResAuthButtons {
     [key: string]: string[];
+  }
+  //用户信息模版(我加的)
+  export interface ResUserInfo {
+    userId: number;
+    username: string;
+    //姓名
+    name: string;
+    //性别
+    gender: string;
+    //用户状态
+    userStatic: string;
+    //用户备注
+    userNotes: string;
+    //用户头像
+    avatar: string;
+    power: string[];
   }
 }
 

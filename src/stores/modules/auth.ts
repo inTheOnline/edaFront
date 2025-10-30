@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { AuthState } from "@/stores/interface";
-import { getAuthButtonListApi, getAuthMenuListApi } from "@/api/modules/login";
+import { getAuthButtonListApi, getAuthMenuListApi, getAuthInfoApi } from "@/api/modules/login";
 import { getFlatMenuList, getShowMenuList, getAllBreadcrumbList } from "@/utils";
 
 export const useAuthStore = defineStore({
@@ -10,6 +10,10 @@ export const useAuthStore = defineStore({
     authButtonList: {},
     // 菜单权限列表
     authMenuList: [],
+    //
+    userInfo: {
+      powers: []
+    },
     // 当前页面的 router name，用来做按钮权限筛选
     routeName: ""
   }),
@@ -23,7 +27,9 @@ export const useAuthStore = defineStore({
     // 菜单权限列表 ==> 扁平化之后的一维数组菜单，主要用来添加动态路由
     flatMenuListGet: state => getFlatMenuList(state.authMenuList),
     // 递归处理后的所有面包屑导航列表
-    breadcrumbListGet: state => getAllBreadcrumbList(state.authMenuList)
+    breadcrumbListGet: state => getAllBreadcrumbList(state.authMenuList),
+    // 个人信息以及权限标识信息对象（我加的）
+    userInfoGet: state => state.userInfo
   },
   actions: {
     // Get AuthButtonList
@@ -34,11 +40,20 @@ export const useAuthStore = defineStore({
     // Get AuthMenuList
     async getAuthMenuList() {
       const { data } = await getAuthMenuListApi();
+      //改动路由从静态变为数据库中获取
       this.authMenuList = data;
     },
     // Set RouteName
     async setRouteName(name: string) {
       this.routeName = name;
+    },
+    // Get UserInfo(我加的)
+    async getAuthInfo() {
+      const { data } = await getAuthInfoApi();
+      this.userInfo = data;
+    },
+    isExistence(name: string): boolean {
+      return this.userInfo.powers?.includes(name);
     }
   }
 });

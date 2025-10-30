@@ -1,7 +1,7 @@
 <template>
   <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" size="large">
     <el-form-item prop="username">
-      <el-input v-model="loginForm.username" placeholder="用户名：admin / user">
+      <el-input v-model="loginForm.userName" placeholder="用户名：admin / user">
         <template #prefix>
           <el-icon class="el-input__icon">
             <user />
@@ -37,41 +37,47 @@ import { ElNotification } from "element-plus";
 import { loginApi } from "@/api/modules/login";
 import { useUserStore } from "@/stores/modules/user";
 import { useTabsStore } from "@/stores/modules/tabs";
+import { useMapStore } from "@/stores/modules/map";
 import { useKeepAliveStore } from "@/stores/modules/keepAlive";
 import { initDynamicRouter } from "@/routers/modules/dynamicRouter";
 import { CircleClose, UserFilled } from "@element-plus/icons-vue";
 import type { ElForm } from "element-plus";
-import md5 from "md5";
+// import { c } from "vite/dist/node/types.d-aGj9QkWt";
+// import md5 from "md5";
 
 const router = useRouter();
 const userStore = useUserStore();
 const tabsStore = useTabsStore();
 const keepAliveStore = useKeepAliveStore();
+const mapStore = useMapStore();
 
 type FormInstance = InstanceType<typeof ElForm>;
 const loginFormRef = ref<FormInstance>();
 const loginRules = reactive({
-  username: [{ required: true, message: "请输入用户名", trigger: "blur" }],
-  password: [{ required: true, message: "请输入密码", trigger: "blur" }]
+  userName: [{ required: true, message: "请输入用户名", trigger: "blur" }],
+  password: [{ required: true, message: "请输入密码", trigger: "blur" }],
 });
 
 const loading = ref(false);
 const loginForm = reactive<Login.ReqLoginForm>({
-  username: "",
-  password: ""
+  userName: "",
+  password: "",
 });
 
-// login
+// login 登录方法
 const login = (formEl: FormInstance | undefined) => {
   if (!formEl) return;
-  formEl.validate(async valid => {
+  formEl.validate(async (valid) => {
     if (!valid) return;
     loading.value = true;
     try {
       // 1.执行登录接口
-      const { data } = await loginApi({ ...loginForm, password: md5(loginForm.password) });
-      userStore.setToken(data.access_token);
+      // const { data } = await loginApi({ ...loginForm, password: md5(loginForm.password) });
+      const { data } = await loginApi({ ...loginForm, password: loginForm.password });
 
+      // 请求成功后，返回{ data }，并且把接口返回的token存储到pinia状态管理器里。
+      userStore.setToken(data.token);
+      mapStore.initialize();
       // 2.添加动态路由
       await initDynamicRouter();
 
@@ -81,19 +87,19 @@ const login = (formEl: FormInstance | undefined) => {
 
       // 4.跳转到首页
       router.push(HOME_URL);
-      // ElNotification({
-      //   title: getTimeState(),
-      //   message: "欢迎登录 Geeker-Admin",
-      //   type: "success",
-      //   duration: 3000
-      // });
       ElNotification({
-        title: "React 付费版本 🔥🔥🔥",
-        dangerouslyUseHTMLString: true,
-        message: "预览地址：<a href='https://pro.spicyboy.cn'>https://pro.spicyboy.cn</a>",
+        title: "深圳市意达五金制品有限公司",
+        message: "欢迎登录 Geeker-Admin",
         type: "success",
-        duration: 8000
+        duration: 3000,
       });
+      // ElNotification({
+      //   title: "React 付费版本 🔥🔥🔥",
+      //   dangerouslyUseHTMLString: true,
+      //   message: "预览地址：<a href='https://pro.spicyboy.cn'>https://pro.spicyboy.cn</a>",
+      //   type: "success",
+      //   duration: 8000
+      // });
     } finally {
       loading.value = false;
     }
@@ -122,5 +128,5 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-@import "../index.scss";
+@use "../index.scss" as *;
 </style>

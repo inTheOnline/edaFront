@@ -5,6 +5,7 @@ import { createProxy } from "./build/proxy";
 import { createVitePlugins } from "./build/plugins";
 import pkg from "./package.json";
 import dayjs from "dayjs";
+import api from "@/api";
 
 const { dependencies, devDependencies, name, version } = pkg;
 const __APP_INFO__ = {
@@ -19,6 +20,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   const viteEnv = wrapperEnv(env);
 
   return {
+    // 部署应用时的基本 URL
     base: viteEnv.VITE_PUBLIC_PATH,
     root,
     resolve: {
@@ -33,7 +35,9 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     css: {
       preprocessorOptions: {
         scss: {
-          additionalData: `@import "@/styles/var.scss";`
+          // additionalData: `@import "@/styles/var.scss";`
+          additionalData: `@use "@/styles/var.scss"as *;`,
+          api:"modern-compiler"
         }
       }
     },

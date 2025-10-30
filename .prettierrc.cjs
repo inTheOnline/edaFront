@@ -1,5 +1,5 @@
 // @see: https://www.prettier.cn
-
+/*
 module.exports = {
   // 指定最大换行长度
   printWidth: 130,
@@ -39,3 +39,4 @@ module.exports = {
   rangeStart: 0,
   rangeEnd: Infinity
 };
+*/

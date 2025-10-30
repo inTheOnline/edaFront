@@ -4,7 +4,7 @@
     :background="true"
     :current-page="pageable.pageNum"
     :page-size="pageable.pageSize"
-    :page-sizes="[10, 25, 50, 100]"
+    :page-sizes="[10, 50, 100, 1000]"
     :total="pageable.total"
     :size="globalStore?.assemblySize ?? 'default'"
     layout="total, sizes, prev, pager, next, jumper"

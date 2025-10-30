@@ -12,13 +12,16 @@ const modules = import.meta.glob("@/views/**/*.vue");
  * @description 初始化动态路由
  */
 export const initDynamicRouter = async () => {
+  //引入 pinia下的userStore数据
   const userStore = useUserStore();
   const authStore = useAuthStore();
 
   try {
     // 1.获取菜单列表 && 按钮权限列表
     await authStore.getAuthMenuList();
-    await authStore.getAuthButtonList();
+    // await authStore.getAuthButtonList();
+    //我加的，获取
+    await authStore.getAuthInfo();
 
     // 2.判断当前用户有没有菜单权限
     if (!authStore.authMenuListGet.length) {
@@ -39,10 +42,18 @@ export const initDynamicRouter = async () => {
       if (item.component && typeof item.component == "string") {
         item.component = modules["/src/views" + item.component + ".vue"];
       }
-      if (item.meta.isFull) {
+      // if (item.meta.isFull) {
+      //   router.addRoute(item as unknown as RouteRecordRaw);
+      // } else {
+      //   router.addRoute("layout", item as unknown as RouteRecordRaw);
+      // }
+      //权限控制（我加的）
+      if (item.meta.isFull && authStore.userInfoGet.powers.includes(item.meta.roles)) {
         router.addRoute(item as unknown as RouteRecordRaw);
       } else {
-        router.addRoute("layout", item as unknown as RouteRecordRaw);
+        if (authStore.userInfoGet.powers.includes(item.meta.roles)) {
+          router.addRoute("layout", item as unknown as RouteRecordRaw);
+        }
       }
     });
   } catch (error) {

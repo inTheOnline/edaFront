@@ -2,9 +2,12 @@
  * @description：请求配置
  */
 export enum ResultEnum {
-  SUCCESS = 200,
-  ERROR = 500,
-  OVERDUE = 401,
+  //成功
+  SUCCESS = "200",
+  //错误
+  ERROR = "500",
+  //登录过期
+  OVERDUE = "401",
   TIMEOUT = 30000,
   TYPE = "success"
 }

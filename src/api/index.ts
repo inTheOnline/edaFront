@@ -30,7 +30,6 @@ class RequestHttp {
   public constructor(config: AxiosRequestConfig) {
     // instantiation
     this.service = axios.create(config);
-
     /**
      * @description 请求拦截器
      * 客户端发送请求 -> [请求拦截器] -> 服务器
@@ -46,7 +45,8 @@ class RequestHttp {
         config.loading ??= true;
         config.loading && showFullScreenLoading();
         if (config.headers && typeof config.headers.set === "function") {
-          config.headers.set("x-access-token", userStore.token);
+          //修改为自己后端所接收的 token key（待处理）
+          config.headers.set("token", userStore.token);
         }
         return config;
       },
@@ -75,7 +75,7 @@ class RequestHttp {
         }
         // 全局错误信息拦截（防止下载文件的时候返回数据流，没有 code 直接报错）
         if (data.code && data.code !== ResultEnum.SUCCESS) {
-          ElMessage.error(data.msg);
+          ElMessage.error(data.message);
           return Promise.reject(data);
         }
         // 成功请求（在页面上除非特殊情况，否则不用处理失败逻辑）
@@ -98,6 +98,9 @@ class RequestHttp {
 
   /**
    * @description 常用请求方法封装
+   * @param url 请求地址
+   * @param params 请求参数
+   * @param _object 其他配置项
    */
   get<T>(url: string, params?: object, _object = {}): Promise<ResultData<T>> {
     return this.service.get(url, { params, ..._object });
