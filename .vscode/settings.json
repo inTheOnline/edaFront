@@ -3,6 +3,12 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.stylelint": "explicit"
   },
+  //我加的，解决git无法提交问题
+  "prettier.ignorePath": ".prettierignore",
+  "files.watcherExclude": {
+    "**/.history/**": true
+  },
+
   "stylelint.enable": true,
   "stylelint.validate": ["css", "less", "postcss", "scss", "vue", "sass", "html"],
   "files.eol": "\n",
