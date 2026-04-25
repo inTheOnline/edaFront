@@ -24,4 +24,9 @@ stats.html
 *.njsproj
 *.sln
 *.sw?
-.history
+
+# Local editor history / build cache
+.history/
+routeview-dev.err
+routeview-dev.out
+*.tsbuildinfo
