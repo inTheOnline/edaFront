@@ -1,0 +1,22 @@
+Port 5173 is in use, trying another one...
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m1157[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/[39m
+[2m19:18:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/login/components/LoginForm.vue[22m
+[2m20:23:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/views/login/components/LoginForm.vue[22m
+[2m19:06:39[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/views/buy/buyForm/components/PurchaseRecordDialog.vue[22m
+[2m19:03:32[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/views/production/qrLayout/index.vue[22m
+[2m19:35:43[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
+[2m19:35:43[22m [36m[1m[vite][22m[39m server restarted.
+[2m20:52:22[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
+Re-optimizing dependencies because lockfile has changed
+[2m20:52:22[22m [36m[1m[vite][22m[39m server restarted.
+[2m21:07:33[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
+Re-optimizing dependencies because lockfile has changed
+[2m21:07:33[22m [36m[1m[vite][22m[39m server restarted.
+[2m21:18:39[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
+Re-optimizing dependencies because lockfile has changed
+[2m21:18:39[22m [36m[1m[vite][22m[39m server restarted.
+[2m21:18:42[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
+[2m21:18:42[22m [36m[1m[vite][22m[39m server restarted.
