@@ -10,7 +10,8 @@ import {
   PolarComponent,
   GeoComponent,
   ToolboxComponent,
-  DataZoomComponent
+  DataZoomComponent,
+  AxisPointerComponent
 } from "echarts/components";
 import { LabelLayout, UniversalTransition } from "echarts/features";
 import { CanvasRenderer } from "echarts/renderers";
@@ -56,6 +57,7 @@ echarts.use([
   PolarComponent,
   GeoComponent,
   ToolboxComponent,
+  AxisPointerComponent,
   DataZoomComponent,
   BarChart,
   LineChart,

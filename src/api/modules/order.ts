@@ -17,6 +17,9 @@ export const delect = (ids: number[]) => {
 export const deleteMany = (ids: number[]) => {
   return http.post<any>(`/order/deleteMany`,ids);
 };
+export const deleteMater = (ids: number[]) => {
+  return http.post<any>(`/order/deleteMater`,ids);
+};
 export const addOrder = (order:Order) => {
   return http.post<any>(`/order/addOrder`, order);
 };
@@ -31,4 +34,25 @@ export const editOrder = (order:Order) => {
 };
 export const reset = () => {
   return http.get<any>(`/order/reset`);
+};
+export const importCustOrders = () => {
+  return http.post<any>(`/order/reset`);
+}
+export const getCustOrderList = () => {
+  return http.get<any>(`/order/COList`);
+}
+export const getOrderDetail = (id:number) => {
+  return http.get<any>(`/order/detail/`+id);
+}
+export const getSubmitOrder = (materId:number) => {
+  return http.get<any>(`/order/submitOrder/${materId}`);
+}
+export const getOrderItem = (params: ReqPageT<any>) => {
+  return http.post<any>(`/order/getOrderItem`, params);
+};
+export const getCustTableItem = (params: ReqPageT<any>) => {
+  return http.post<any>(`/custOrder/getTableItem`, params);
+};
+export const addBatchApi = (params: ReqPageT<any>) => {
+  return http.post<any>(`/order/addBatch`, params);
 };

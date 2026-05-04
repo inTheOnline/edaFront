@@ -11,62 +11,80 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import * as echarts from 'echarts';
+import { onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue";
+import { useDebounceFn } from "@vueuse/core";
+import * as echarts from "echarts";
 
 // 定义响应式容器引用和图表实例
 const chartContainer = ref(null);
-const chartInstance = ref(null);//ECharts 实例
-defineProps(['options'])
-// 定义 props 接收外部传入的配置项
+const chartInstance = ref(null); // ECharts 实例
+
 const props = defineProps({
   options: {
     type: Object,
     required: true,
+    default: () => ({}),
   },
 });
+
 // 初始化图表
 const initChart = () => {
-  if (chartInstance.value) return;
-  // 使用 ref 获取 DOM 元素并初始化 ECharts 实例
+  if (!chartContainer.value) return;
+
+  // 防止重复初始化
+  if (chartInstance.value) {
+    chartInstance.value.dispose();
+  }
+
   chartInstance.value = echarts.init(chartContainer.value);
-  // 设置传入的配置项
-  chartInstance.value.setOption(props.options);
+  chartInstance.value.setOption(props.options, { notMerge: true });
 };
 
-// 组件挂载时初始化图表并监听窗口大小变化
-onMounted(() => {
-  console.log("dwadaw"+props.options);
+// 防抖更新图表（避免高频 setOption）
+const updateChart = useDebounceFn((newOptions) => {
+  if (chartInstance.value) {
+    // 使用 notMerge: true 避免配置项累积，完全替换
+    chartInstance.value.setOption(newOptions, { notMerge: true, lazyUpdate: true });
+  }
+}, 100);
 
-  initChart();
-  window.addEventListener('resize', handleResize);
+// 组件挂载后初始化
+onMounted(async () => {
+  await nextTick(); // 确保 DOM 布局完成
+
+  if (chartContainer.value) {
+    initChart();
+    window.addEventListener("resize", handleResize);
+  }
 });
 
 // 组件卸载前销毁图表实例
 onBeforeUnmount(() => {
   if (chartInstance.value) {
     chartInstance.value.dispose();
-    window.removeEventListener('resize', handleResize);
+    chartInstance.value = null;
   }
+  window.removeEventListener("resize", handleResize);
 });
 
-// 监听配置项变化，动态更新图表
+// 监听配置项变化（浅监听，不深度比较）
 watch(
   () => props.options,
   (newOptions) => {
-    if (chartInstance.value) {
-      chartInstance.value.setOption(newOptions);
+    if (chartInstance.value && newOptions) {
+      updateChart(newOptions);
+    } else if (!chartInstance.value && newOptions) {
+      // 实例未创建时直接初始化
+      initChart();
     }
   },
-  { deep: true }
+  { deep: false }, // ❌ 移除 deep: true，避免深度比较卡顿
 );
 
-// 监听窗口大小变化，调整图表尺寸
-const handleResize = () => {
-  if (chartInstance.value) {
-    chartInstance.value.resize();
-  }
-};
+// 监听窗口大小变化，调整图表尺寸（防抖）
+const handleResize = useDebounceFn(() => {
+  chartInstance.value?.resize({ animation: { duration: 300 } });
+}, 200);
 </script>
 
 <style scoped>

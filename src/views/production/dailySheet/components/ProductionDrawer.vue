@@ -4,7 +4,7 @@
       ref="ruleFormRef"
       label-width="120px"
       label-suffix=" :"
-      :rule="rules"
+      :rules ="rules"
       :disabled="drawerProps.isView"
       :model="drawerProps.row"
       :hide-required-asterisk="drawerProps.isView"
@@ -62,9 +62,9 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="生产时间（H）" prop="hours">
+      <el-form-item label="生产时间(H)" prop="hours">
         <el-input
-          v-model="drawerProps.row.hours"
+          v-model.number="drawerProps.row.hours"
           type="number"
           min="0"
           step="0.01"
@@ -76,7 +76,7 @@
 
       <el-form-item label="生产数量" prop="qty">
         <el-input
-          v-model="drawerProps.row.qty"
+          v-model.number="drawerProps.row.qty"
           type="number"
           min="1"
           placeholder="输入生产数量"
@@ -87,7 +87,7 @@
 
       <el-form-item label="不良品数" prop="defect">
         <el-input
-          v-model="drawerProps.row.defect"
+          v-model.number="drawerProps.row.defect"
           type="number"
           min="0"
           placeholder="输入不良品数（默认0）"
@@ -141,16 +141,16 @@ interface DrawerProps {
 // 表单验证规则
 const rules = reactive({
   date: [{ required: true, message: "请选择生产日期", trigger: "change" }],
-  materId: [{ required: true, message: "请选择产品", trigger: "change" }],
+  materId: [{ required: false, message: "请选择产品", trigger: "change" }],
   process: [{ required: true, message: "请输入工序名", trigger: "blur" }],
-  machine: [{ required: true, message: "请输入机器序号", trigger: "blur" }],
+  machine: [{ required: false, message: "请输入机器序号", trigger: "blur" }],
   hours: [
     { required: true, message: "请输入生产时间", trigger: "blur" },
     { type: "number", min: 0, message: "生产时间不能为负数", trigger: "blur" },
   ],
   qty: [
     { required: true, message: "请输入生产数量", trigger: "blur" },
-    { type: "number", min: 1, message: "生产数量至少为1", trigger: "blur" },
+    { type: "number", min: 0, message: "生产数量至少为0", trigger: "blur" },
   ],
   defect: [{ type: "number", min: 0, message: "不良品数不能为负数", trigger: "blur" }],
 });

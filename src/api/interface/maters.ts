@@ -1,7 +1,7 @@
 export interface Mater {
   id: number;
-  mateNum: string;
-  mateName: string;
+  materNum: string;
+  materName: string;
   custId: number;
 }
 

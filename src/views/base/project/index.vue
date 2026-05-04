@@ -26,13 +26,21 @@
         </template>
         <!-- Expand -->
         <template #expand="scope">
-          <div class="expand_div">
-            <el-table :data="scope.row.maters" class="expand" style="width: 100%" v-show="scope.row.maters.length > 0">
-              <el-table-column class="column" align="center" prop="mateNum" label="物料编号" />
-              <el-table-column class="column" align="center" prop="mateName" label="物料名称" />
+          <div class="expand_card">
+            <!-- 有数据 -->
+            <el-table
+              v-if="scope.row.maters && scope.row.maters.length > 0"
+              :data="scope.row.maters"
+              class="expand_table"
+              stripe
+            >
+              <el-table-column prop="materNum" label="物料编号" />
+              <el-table-column prop="materName" label="物料名称" />
             </el-table>
-            <div class="no_data" v-show="scope.row.maters.length == 0">
-              <SvgIcon name="table404" :icon-style="{ width: '100%' }" />
+          
+            <!-- 空数据 -->
+            <div v-else class="empty_box">
+              <SvgIcon name="table404" class="empty_icon" />
               <p>暂无物料信息</p>
             </div>
           </div>
@@ -177,5 +185,59 @@ const editProject = async (row: any) => {
 .no_data p {
   text-align: center;
   margin-bottom: -10px;
+}
+.expand_card {
+  margin: 10px 120px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: #fafafa;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+/* hover 微动效 */
+.expand_card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* 表格优化 */
+.expand_table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 去掉原始硬边框 */
+.expand_table :deep(.el-table__inner-wrapper) {
+  border: none;
+}
+
+/* 表头 */
+.expand_table :deep(th) {
+  background-color: #f5f7fa;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 行 */
+.expand_table :deep(td) {
+  padding: 10px 0;
+}
+
+/* 斑马纹更柔和 */
+.expand_table :deep(.el-table__row--striped td) {
+  background-color: #fcfcfc;
+}
+
+/* 空状态 */
+.empty_box {
+  text-align: center;
+  padding: 30px 0;
+  color: #999;
+}
+
+.empty_icon {
+  width: 120px;
+  opacity: 0.6;
+  margin-bottom: 10px;
 }
 </style>

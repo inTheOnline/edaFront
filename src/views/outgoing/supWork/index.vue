@@ -95,7 +95,7 @@ const columns: ColumnProps[] = reactive([
   },
   {
     label: "物料编号",
-    prop: "mateNum",
+    prop: "materNum",
     minWidth: 250,
     search: {
       el: "input",
@@ -107,7 +107,7 @@ const columns: ColumnProps[] = reactive([
   },
   {
     label: "物料名称",
-    prop: "mateName",
+    prop: "materName",
     minWidth:300,
     search: {
       el: "input",

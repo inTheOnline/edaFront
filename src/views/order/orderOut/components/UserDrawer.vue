@@ -9,29 +9,17 @@
       :model="drawerProps.row"
       :hide-required-asterisk="drawerProps.isView"
     >
-    <!-- {{ drawerProps.row.maters }} -->
+      <!-- {{ drawerProps.row.maters }} -->
       <el-form-item label="订单编号" prop="orderNum">
         <el-input v-model="drawerProps.row.orderNum" placeholder="请填入订单编号" clearable></el-input>
       </el-form-item>
       <el-form-item label="订单编号" prop="custId">
-        <el-select
-          v-model="drawerProps.row.custId"
-          placeholder="请选择客户"
-          style="width: 240px"
-        >
-        <el-option
-          v-for="item in dictStore.dictMap['cust']"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-        />
-    </el-select>
+        <el-select v-model="drawerProps.row.custId" placeholder="请选择客户" style="width: 240px">
+          <el-option v-for="item in dictStore.dictMap['cust']" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
       </el-form-item>
       <el-form-item label="出货明细" prop="maters">
-        <Mater
-          v-model="drawerProps.row.maters"
-          :options="dictStore.dictMap['mater']"
-        />
+        <Mater v-model="drawerProps.row.maters" :options="dictStore.dictMap['mater']" />
       </el-form-item>
       <el-form-item label="备注" prop="remark">
         <el-input v-model="drawerProps.row.remark" placeholder="请填入送货备注" clearable></el-input>
@@ -52,25 +40,21 @@
     :bordered="false"
     :segmented="segmented"
   >
-    <template #header-extra>
-      噢!
-    </template>
+    <template #header-extra> 噢! </template>
     内容
-    <template #footer>
-      尾部
-    </template>
+    <template #footer> 尾部 </template>
   </n-modal>
 </template>
 
 <script setup lang="ts" name="UserDrawer">
-import { ref, reactive,onMounted,computed} from "vue";
-import { ElMessage, FormInstance } from "element-plus";
-import Mater from "@/views/components/mater/Maters.vue"
+import { ref, reactive, onMounted, computed } from "vue";
+import { ElLoading, ElMessage, FormInstance } from "element-plus";
+import Mater from "@/views/components/mater/Maters.vue";
 import { de } from "element-plus/es/locale";
-import {useDictStore} from '@/stores/modules/dict'
-const dictStore = useDictStore()
+import { useDictStore } from "@/stores/modules/dict";
+const dictStore = useDictStore();
 onMounted(async () => {
-  await dictStore.loadDicts(['mater']);
+  await dictStore.loadDicts(["mater"]);
 });
 // 验证规则
 const rules = reactive({
@@ -82,22 +66,22 @@ const drawerProps = ref<DrawerProps>({
   isView: false,
   title: "",
   row: {
-    orderMaterId:'',
-    number:1,
-    remark:"",
+    orderMaterId: "",
+    number: 1,
+    remark: "",
   },
 });
 // 物料模块
 const props = {
   // checkStrictly: true,
-  value: 'value', // 数据中的唯一标识字段
-  label: 'label', // 数据中的显示名称字段
+  value: "value", // 数据中的唯一标识字段
+  label: "label", // 数据中的显示名称字段
   emitPath: false, // 只返回选中节点的值，不返回路径
 };
 // 接收父组件传过来的参数
 const acceptParams = (params: DrawerProps) => {
   if (!Array.isArray(params.row.maters)) {
-    params.row.maters = [{ id: '', totalNumber: 1 }]
+    params.row.maters = [{ id: "", totalNumber: 1 }];
   }
   drawerProps.value = params;
   drawerVisible.value = true;
@@ -106,8 +90,9 @@ const acceptParams = (params: DrawerProps) => {
 // 提交数据（新增/编辑）
 const ruleFormRef = ref<FormInstance>();
 const handleSubmit = () => {
-  ruleFormRef.value!.validate(async valid => {
+  ruleFormRef.value!.validate(async (valid) => {
     if (!valid) return;
+    const loading = ElLoading.service({ text: "提交中..." });
     try {
       await drawerProps.value.api!(drawerProps.value.row);
       ElMessage.success({ message: `${drawerProps.value.title}订单成功！` });
@@ -115,13 +100,16 @@ const handleSubmit = () => {
       drawerVisible.value = false;
       console.log(drawerProps.value.row);
     } catch (error) {
-      console.log(error);
+      ElMessage.error("提交失败，请检查数据");
+      console.error("Submit failed:", error);
+    } finally {
+      loading.close();
     }
   });
 };
 
 defineExpose({
-  acceptParams
+  acceptParams,
 });
 </script>
 

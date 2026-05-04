@@ -26,8 +26,8 @@ export const getExcel = () => {
   return http.download("/hr/staff/getExcel", {});
 }
 export const addManyCheck = (params: FormData ) => {
-  return http.post<any>("/file/kaoqin ", params);
-}
+  return http.post<any>("/file/kaoqin", params);
+}//修改了
 export const getCheckModel = (num: string) => {
   return http.download("/hr/check/getModel", {});
 }

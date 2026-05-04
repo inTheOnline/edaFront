@@ -28,7 +28,7 @@
       </el-form-item>
       <el-form-item label="状态" prop="state">
         <el-select v-model="drawerProps.row.state" placeholder="请选择状态" clearable>
-          <el-option v-for="item in drawerProps.stateMap" :key="item.value" :label="item.state" :value="item.value" />
+          <el-option v-for="item in drawerProps.stateMap" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="受教育程度" prop="edu">
@@ -39,6 +39,18 @@
           <el-option v-for="item in drawerProps.checksysMap" :key="item.value" :label="item.checksys" :value="item.id" />
         </el-select>
       </el-form-item>
+      <el-form-item label="入职时间" prop="entryTime">
+      <!-- 日期选择器，支持选择日期+时间（也可仅选日期） -->
+      <el-date-picker
+        v-model="drawerProps.row.createTime"
+        type="date"  
+        placeholder="请选择入职时间"
+        format="YYYY-MM-DD" 
+        value-format="YYYY-MM-DD"
+        style="width: 100%;"
+        :disabled-date="(date) => date.getTime() > Date.now()"
+      ></el-date-picker>
+    </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="drawerVisible = false">取消</el-button>

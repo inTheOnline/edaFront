@@ -45,6 +45,25 @@ import { ref, reactive,onMounted } from "vue";
 import { ElMessage, FormInstance } from "element-plus";
 import {useDictStore} from '@/stores/modules/dict'
 const dictStore = useDictStore()
+
+// 本次改动：补齐用户抽屉参数类型，避免当前目录类型检查被历史缺失类型影响。
+interface DrawerProps {
+  isView: boolean;
+  title: string;
+  row: {
+    workName?: string;
+    userName: string;
+    password: string;
+    name: string;
+    gender: number | string;
+    roleId: number | string;
+    userNotes?: string;
+    [key: string]: any;
+  };
+  api?: (params: any) => Promise<any> | void;
+  getTableList?: () => void | Promise<void>;
+}
+
 onMounted(async () => {
   await dictStore.loadDicts(['role']);
 });

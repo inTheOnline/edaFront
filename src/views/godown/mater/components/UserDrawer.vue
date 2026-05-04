@@ -14,23 +14,23 @@
           <el-option v-for="item in dictStore.dictMap['project']" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
-      <el-form-item label="物料编码" prop="mateNum">
-        <el-input v-model="drawerProps.row.mateNum" placeholder="请填入物料编码" clearable></el-input>
+      <el-form-item label="物料编码" prop="materNum">
+        <el-input v-model="drawerProps.row.materNum" placeholder="请填入物料编码" clearable></el-input>
       </el-form-item>
-      <el-form-item label="物料名称" prop="mateName">
-        <el-input v-model="drawerProps.row.mateName" placeholder="请填入物料名称" clearable></el-input>
+      <el-form-item label="物料名称" prop="materName">
+        <el-input v-model="drawerProps.row.materName" placeholder="请填入物料名称" clearable></el-input>
       </el-form-item>
       <el-form-item label="终端客户物料编号" prop="finalSpecs">
         <el-input v-model="drawerProps.row.finalSpecs" placeholder="请输入终端客户物料编号" clearable></el-input>
       </el-form-item>
-      <el-form-item label="实际重量(g)" prop="weight">
-        <el-input v-model="drawerProps.row.weight" placeholder="请输入实际重量(g)" clearable></el-input>
+      <el-form-item label="实际重量(kg)" prop="weight">
+        <el-input v-model="drawerProps.row.weight" placeholder="请输入实际重量(kg)" clearable></el-input>
       </el-form-item>
       <el-form-item label="表面积(mm²)" prop="s">
         <el-input v-model="drawerProps.row.s" placeholder="请输入表面积(mm²)" clearable></el-input>
       </el-form-item>
-      <el-form-item label="理论重量(g)" prop="theoryWeight">
-        <el-input v-model="drawerProps.row.theoryWeight" placeholder="请填入理论重量(g)" clearable></el-input>
+      <el-form-item label="理论重量(kg)" prop="theoryWeight">
+        <el-input v-model="drawerProps.row.theoryWeight" placeholder="请填入理论重量(kg)" clearable></el-input>
       </el-form-item>
       <el-form-item label="价格(元)" prop="price" v-show="authStore.isExistence('price:look')">
         <el-input v-model="drawerProps.row.price" placeholder="请输入价格信息" clearable></el-input>
@@ -63,14 +63,14 @@ onMounted(async () => {
 // 验证规则
 const rules = reactive({
   projectId: [{ required: true, message: "请选择" }],
-  mateNum: [{ required: true, message: "请填入物料编码" }],
-  mateName: [{ required: true, message: "请填入物料名称" }],
+  materNum: [{ required: true, message: "请填入物料编码" }],
+  materName: [{ required: true, message: "请填入物料名称" }],
   finalSpecs: [{ required: false, message: "请输入终端客户物料编号" }],
   weight: [{ required: false, message: "请输入实际重量" }],
   s: [{ required: false, message: "请输入表面积" }],
   theoryWeight: [{ required: false, message: "请填入理论重量" }],
   price: [{ required: false, message: "请输入价格信息" }],
-  custId: [{ required: false, message: "请选择客户" }],
+  custId: [{ required: true, message: "请选择客户" }],
 });
 const drawerVisible = ref(false);
 const drawerProps = ref<DrawerProps>({

@@ -68,6 +68,9 @@ export interface AuthState {
     powers: string[];
   };
   authMenuList: Menu.MenuOptions[];
+  defaultInfo: {
+    custId: number;
+  };
 }
 
 /* KeepAliveState */

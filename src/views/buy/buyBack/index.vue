@@ -18,8 +18,8 @@
         <template #expand="scope">
           <div class="expand_div">
             <el-table :data="scope.row.maters" class="expand" style="width: 100%" v-show="scope.row.maters.length > 0">
-              <el-table-column class="column" align="center" prop="mateNum" label="物料编号" />
-              <el-table-column class="column" align="center" prop="mateName" label="物料名称" />
+              <el-table-column class="column" align="center" prop="materNum" label="物料编号" />
+              <el-table-column class="column" align="center" prop="materName" label="物料名称" />
               <el-table-column class="column" align="center" prop="number" label="回执数量" />
               <el-table-column class="column" align="center" prop="backNumber" label="已回数量" />
               <el-table-column class="column" align="center" prop="notbackNumber" label="未回数量" />

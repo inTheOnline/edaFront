@@ -12,9 +12,9 @@ export interface OutformData {
   //供应商名称
   supName: string;
   //物料编号
-  mateNum: number;
+  materNum: number;
   //物料名称
-  mateName?: string;
+  materName?: string;
   //外发数量
   number: number;
   //已回数量
@@ -75,9 +75,9 @@ export interface OutbackData {
   //外发单号
   outNum: string;
   //物料编号
-  mateNum: string;
+  materNum: string;
   //物料名称
-  mateName: string;
+  materName: string;
   //回执数量
   backNumber: number;
   //备注
@@ -94,7 +94,7 @@ export interface BackbadData {
   //物料编号
   mateNum: string;
   //物料名称
-  mateName: string;
+  materName: string;
   //不良数量
   badNumber: number;
   //报废数量

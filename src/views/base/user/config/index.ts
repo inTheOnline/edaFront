@@ -10,7 +10,8 @@ export const columns: ColumnProps[] = reactive([
     width: 60,
     align: "center",
     fixed: "left",
-    index: (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1,
+    // 本次改动：该配置文件未接收表格实例，避免引用不存在的 proTableRef。
+    index: index => index + 1,
   },
   {
     label: "用户名",

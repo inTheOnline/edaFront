@@ -1,6 +1,6 @@
 <template>
   <div class="mater-container">
-    <div>
+    <div class="ProTable">
       <ProTable
         :columns="columns"
         :request-api="getAll"
@@ -11,10 +11,16 @@
         title="Outgoing-Form"
         ref="proTableRef"
         striped=true
-        :search-col="{ xs: 1, sm: 1, md: 3, lg: 5, xl: 4 }"
+        :search-col="{ xs: 2, sm: 2, md: 3, lg: 3, xl: 4 }"
       >
         <template #tableHeader="scope">
           <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增物料</el-button>
+          <el-button 
+            type="primary" 
+            :icon="Edit" 
+            v-auth="['price:edit','price:view']"
+            @click="priceChange">价格变更</el-button>
+                        <!-- v-show="authStore.isExistence('price:view') || authStore.isExistence('price:edit')" -->
           <el-button type="primary" :icon="Upload" plain @click="batchAdd">批量添加物料</el-button>
           <el-button type="primary" :icon="Download" plain @click="downloadFile">导出物料数据</el-button>
           <el-button
@@ -37,6 +43,7 @@
     </div>
     <UserDrawer ref="drawerRef" />
     <ImportExcel ref="dialogRef" />
+    <BatchAddDialog ref="priceDialogRef" />
   </div>
 </template>
 
@@ -49,15 +56,17 @@ import { getDepartmentApi } from "@/api/modules/department";
 import { getStateApi } from "@/api/modules/outgoing";
 import { useDownload } from "@/hooks/useDownload";
 import UserDrawer from "./components/UserDrawer.vue";
-import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
+import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh,Edit } from "@element-plus/icons-vue"; 
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import {useAuthStore} from '@/stores/modules/auth'
 import {useDictStore} from '@/stores/modules/dict'
 import SvgIcon from "@/components/SvgIcon/index.vue";
 import { deleteById } from "@/api/modules/supWork";
+import BatchAddDialog from "./components/BatchAddDialog.vue";
 const authStore = useAuthStore();
 const dictStore = useDictStore()
+const priceDialogRef =ref(null);
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const dataCallback = (data) => {    // 数据回调
@@ -79,8 +88,20 @@ const columns: ColumnProps[] = reactive([
     enum: computed(() => dictStore.dictMap['project']),
   },
   {
-    label: "物料编号或名称",
-    prop: "mateNum",
+    label: "物料编号",
+    prop: "materNum",
+    search: {
+      el: "input",
+      tooltip: "输入物料编号或者名称进行搜索",
+      props: {
+        prefixIcon: "search",
+      },
+    },
+    minWidth: 150
+  },
+  {
+    label: "物料名称",
+    prop: "materName",
     search: {
       el: "input",
       tooltip: "输入物料编号进行搜索",
@@ -88,20 +109,20 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 150
+    minWidth: 150
   },
-  {
-    label: "终端客户物料编号",
-    prop: "finalSpecs",
-    search: {
-      el: "input",
-      tooltip: "输入终端客户物料编号进行搜索",
-      props: {
-        prefixIcon: "search",
-      },
-    },
-    width: 150
-  },
+  // {
+  //   label: "终端客户物料编号",
+  //   prop: "finalSpecs",
+  //   search: {
+  //     el: "input",
+  //     tooltip: "输入终端客户物料编号进行搜索",
+  //     props: {
+  //       prefixIcon: "search",
+  //     },
+  //   },
+  //   width: 150
+  // },
   {
     label: "客户",
     prop: "custId",
@@ -117,7 +138,7 @@ const columns: ColumnProps[] = reactive([
     width: 100
   },
   {
-    label: "实际重量(kg)",
+    label: "实际重量(g)",
     prop: "weight",
   },
   {
@@ -131,7 +152,7 @@ const columns: ColumnProps[] = reactive([
   {
     label: "价格(元)",
     prop: "price",
-    isShow:authStore.isExistence("price:look")
+    isShow:authStore.isExistence("price:view")
   },
   { prop: "operation", label: "操作", fixed: "right", width: 250 },
 ]);
@@ -147,7 +168,13 @@ const openDrawer = async (title: string, row: Object = {}) => {
   };
   drawerRef.value?.acceptParams(params);
 };
-
+//价格修改
+const priceChange = async()=>{
+  priceDialogRef.value.open({
+    materList: dictStore.dictMap['mater'], // 需包含 salePrice
+    refreshTable: proTableRef.value?.getTableList
+  });
+}
 // 删除已选项目
 const deleteSelected = async(ids: number[]): Promise<void> => {
   await deleteMany(ids);
@@ -207,5 +234,9 @@ const deleteFunction = async (id: number) => {
   margin: 0px 200px 10px 200px;
   border-radius: 10px;
   box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+}
+.ProTable{
+
+  height: 75vh;
 }
 </style>

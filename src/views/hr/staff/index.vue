@@ -62,10 +62,11 @@ const dataCallback = (data) => {    // 数据回调
       total: data.total
     };
 };
+const stateMap = computed(() => dictStore.dictMap['state']);
 const checksysMap = ref()
 onMounted(async ()=>{
   const { data:data1 } = await getChecksysMap();
-  await dictStore.loadDicts(['depart']);
+  await dictStore.loadDicts(['depart', 'state']);
   checksysMap.value = data1
 })
 const columns: ColumnProps[] = reactive([
@@ -103,9 +104,8 @@ const columns: ColumnProps[] = reactive([
     label: "部门",
     prop: "departmentId",
     tag: true,
-        search: {
+    search: {
       el: "select",
-      enum: computed(() => dictStore.dictMap['depart']),
       tooltip: "输入部门进行搜索",
       props: {
         prefixIcon: "search",
@@ -118,9 +118,8 @@ const columns: ColumnProps[] = reactive([
     label: "状态",
     prop: "state",
     tag: true,
-    width: 150,
-    enum: getStateApi,
-    fieldNames: { label: "state", value: "value" },
+    width: 100,
+    enum: stateMap,
   },
   {
     label: "身份证号",
@@ -143,6 +142,11 @@ const columns: ColumnProps[] = reactive([
     width: 150,
   },
   {
+    label: "入职时间",
+    prop: "createTime",
+    width: 150,
+  },
+  {
     label: "考勤制度",
     prop: "checksysId",
     enum: checksysMap,
@@ -157,7 +161,8 @@ const openDrawer = async (title: string, row: Object = {}) => {
   const { data:departmentMap} = await getDepartmentApi()
   const { data } = await getStateApi()
    // 过滤出 value 能被 5 整除的对象
-   const stateMap = data.filter(item => item.value % 5 === 0);
+   const stateMaped = stateMap.value.filter(item => item.value % 5 === 0);
+   console.log(stateMaped);
   const params = {
     title,
     isView: title === "查看",
@@ -166,7 +171,8 @@ const openDrawer = async (title: string, row: Object = {}) => {
     getTableList: proTableRef.value?.getTableList,
     departmentMap,
     checksysMap,
-    stateMap,
+    //Codex：通过将stateMap传递给孩子来修复员工抽屉中的空状态选择
+    stateMap: stateMaped,
   };
   drawerRef.value?.acceptParams(params);
 };

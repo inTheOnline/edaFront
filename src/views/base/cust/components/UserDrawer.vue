@@ -9,8 +9,27 @@
       :model="drawerProps.row"
       :hide-required-asterisk="drawerProps.isView"
     >
-      <el-form-item label="客户名称" prop="workName">
-        <el-input v-model="drawerProps.row.workName" placeholder="请填入客户名称" clearable></el-input>
+      <el-form-item label="客户简称" prop="custNum">
+        <el-input v-model="drawerProps.row.custNum" placeholder="请填入客户简称" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="客户名称" prop="custName">
+        <el-input v-model="drawerProps.row.custName" placeholder="请填入客户名称" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="状态" prop="active">
+        <el-select 
+          v-model="drawerProps.row.active" 
+          placeholder="请选择状态" 
+          clearable
+          style="width: 100%;"
+        >
+          <!-- 循环渲染状态选项 -->
+          <el-option
+            v-for="item in drawerProps.stateEnum"
+            :key="item.value"  
+            :label="item.label"
+            :value="item.value" 
+          ></el-option>
+        </el-select>
       </el-form-item>
       <el-form-item label="备注" prop="remark">
         <el-input v-model="drawerProps.row.remark" placeholder="备注" clearable></el-input>
@@ -26,22 +45,31 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive} from "vue";
 import { ElMessage, FormInstance } from "element-plus";
+import { c } from "naive-ui";
 // 验证规则
 const rules = reactive({
-  workName: [{ required: true, message: "请填写客户名称" }],
+  custName: [{ required: true, message: "请填写客户名称" }],
+  custNum: [{ required: true, message: "请填写客户简称" }],
   remark: [{ required: false, message: "备注" }],
 });
 const drawerVisible = ref(false);
-const drawerProps = ref<DrawerProps>({
+const drawerProps = ref<any>({
   isView: false,
   title: "",
   row: {
-    workName: "",
+    custNum: "",
+    custName: "",
     remark: "",
   }
 });
 // 接收父组件传过来的参数
-const acceptParams = (params: DrawerProps) => {
+const acceptParams = async (params: any) => {
+  // 过滤状态选项，满足条件的才显示在下拉框中
+  params.stateEnum = params.stateEnum.filter(item => {
+    // 条件1：value < 100
+    // 条件2：value 除以10余2（item.value % 10 === 2）
+    return item.value < 100 && item.value % 10 === 2;
+  });
   drawerProps.value = params;
   drawerVisible.value = true;
 };

@@ -35,3 +35,9 @@ export const editMater = (row:any) => {
 export const deleteMaterById =(id:number) => {
   return http.delete<any>(`/mater/remove/`+id);
 }
+export const batchChangePriceApi = (row:object[]) =>{
+  return http.post<ResultData>('/mater/batchChangePrice',row);
+}
+export const getPriceMap =()=>{
+  return http.get<ResultData>(`/mater/priceMap`);
+}

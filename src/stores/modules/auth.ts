@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { AuthState } from "@/stores/interface";
 import { getAuthButtonListApi, getAuthMenuListApi, getAuthInfoApi } from "@/api/modules/login";
 import { getFlatMenuList, getShowMenuList, getAllBreadcrumbList } from "@/utils";
+import { getDefaultInfoApi } from "@/api/modules/mySystem/users";
 
 export const useAuthStore = defineStore({
   id: "geeker-auth",
@@ -25,7 +26,10 @@ export const useAuthStore = defineStore({
       powers: []
     },
     // 当前页面的 router name，用来做按钮权限筛选
-    routeName: ""
+    routeName: "",
+    defaultInfo: {
+      custId: 0,
+    }
   }),
   getters: {
     // 按钮权限列表
@@ -39,7 +43,9 @@ export const useAuthStore = defineStore({
     // 递归处理后的所有面包屑导航列表
     breadcrumbListGet: state => getAllBreadcrumbList(state.authMenuList),
     // 个人信息以及权限标识信息对象（我加的）
-    userInfoGet: state => state.userInfo
+    userInfoGet: state => state.userInfo,
+    // 默认配置信息（我加的）
+    defaultInfoGet: state => state.defaultInfo
   },
   actions: {
     // Get AuthButtonList
@@ -61,6 +67,13 @@ export const useAuthStore = defineStore({
     async getAuthInfo() {
       const { data } = await getAuthInfoApi();
       this.userInfo = data;
+      const { data: defaultInfoData } = await getDefaultInfoApi();
+      this.defaultInfo.custId = defaultInfoData.custId;
+    },
+    // ✅ 新增：重置整个权限仓库（登出时调用）
+    resetAuthStore() {
+      // 重置为初始值
+      this.$reset();
     },
     isExistence(name: string): boolean {
       return this.userInfo.powers?.includes(name);

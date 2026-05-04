@@ -17,14 +17,23 @@ export const update = (user: User ) => {
 export const rolesMap = () => {
   return http.get<Role[]>("/role/map");
 }
+export const addRole = (role: Partial<Role>) => {
+  return http.post<Role>("/role/add", role);
+}
+export const getRoleUsers = (roleId: number | string) =>{
+  return http.get<any[]>(`/role/${roleId}/users`);
+}
 export const getRoles = () =>{
   return http.get<ReqPageT<Role>>("/power/getRolePower");
 }
 export const savePower = (params) =>{
   console.log("接口前为",params)
+  // 本次改动：后端已支持 extraPermissions，保存时保留业务权限字段。
   const list = Object.keys(params).map(key => ({
       id: key,
-      ...params[key]
+      enabled: params[key].enabled,
+      access: params[key].access || [],
+      extraPermissions: params[key].extraPermissions
    }));
   return http.post<ReqPageT<Role>>("/power/updatePower",list);
 }

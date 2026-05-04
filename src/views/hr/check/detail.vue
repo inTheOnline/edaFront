@@ -121,11 +121,28 @@ const batchAdd = () => {
   const params = {
     title: "员工考勤数据",
     tempApi: getCheckModel,//模版api
-    importApi: addManyCheck,//上传api
+    importApi: importExcel,//上传api
     getTableList: proTableRef.value?.getTableList
   };
   dialogRef.value?.acceptParams(params);
 };
+const importExcel = function(params: FormData) {
+  addManyCheck(params).then(res => {
+  console.log("返回结果", res)
+  const url = res.data
+
+  const link = document.createElement("a")
+
+  console.log("下载链接", url)
+  link.href = url
+  link.download = "考勤.xlsx"   // 改下载名字
+
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+})
+}
 // 编辑职工
 const editStaff = async (row: any) => {
   console.log("编辑数据", row);

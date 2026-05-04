@@ -1,10 +1,10 @@
 <template>
-  <!-- 分页组件 -->
+  <!-- 分页组件,分页组件每页大小 -->
   <el-pagination
     :background="true"
     :current-page="pageable.pageNum"
     :page-size="pageable.pageSize"
-    :page-sizes="[10, 50, 100, 1000]"
+    :page-sizes="[10, 50, 100, 400]"
     :total="pageable.total"
     :size="globalStore?.assemblySize ?? 'default'"
     layout="total, sizes, prev, pager, next, jumper"

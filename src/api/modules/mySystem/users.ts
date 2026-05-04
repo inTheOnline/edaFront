@@ -26,3 +26,6 @@ export const editUser =(user: User ) =>{
 export const getInfo = () => {
   return http.get<ResultData>("/user/getUserInfo");
 }
+export const getDefaultInfoApi = () => {
+  return http.get<ResultData>("/user/getDefaultInfo");
+}

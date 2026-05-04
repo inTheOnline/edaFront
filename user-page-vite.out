@@ -20,3 +20,6 @@ Re-optimizing dependencies because lockfile has changed
 [2m21:18:39[22m [36m[1m[vite][22m[39m server restarted.
 [2m21:18:42[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
 [2m21:18:42[22m [36m[1m[vite][22m[39m server restarted.
+[2m21:20:31[22m [36m[1m[vite][22m[39m [32mpackage.json changed, restarting server...[39m
+Re-optimizing dependencies because lockfile has changed
+[2m21:20:31[22m [36m[1m[vite][22m[39m server restarted.

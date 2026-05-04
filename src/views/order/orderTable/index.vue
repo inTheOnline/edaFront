@@ -3,7 +3,7 @@
     <div>
       <!-- {{dictStore.loadDict('cust')}} -->
       <ProTable
-      class="Order-container"
+      class="protable"
         :columns="columns"
         :request-api="getOrderAll"
         :dataCallback="dataCallback"
@@ -16,9 +16,9 @@
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
       >
         <!-- 1.表格展开Expand -->
-        <template #expand="scope">
+        <!-- <template #expand="scope">
           <div class="expand_div">
-            <el-table :data="scope.row.maters" class="expand" style="width: 100%" v-show="scope.row.maters.length > 0">
+            <el-table class="expand_table" :data="scope.row.maters" style="width: 100%" v-show="scope.row.maters.length > 0">
               <el-table-column class="column" align="center" prop="materId" label="物料名称" 
               :formatter="(row) => dictStore.getLabel('mater',row.materId) || '未知物料'"
               />
@@ -31,9 +31,33 @@
               <p>暂无物料信息</p>
             </div>
           </div>
+        </template> -->
+        <template #expand="scope">
+          <div class="detail_panel">
+          
+            <!-- 明细区域（重点） -->
+            <div class="detail_body">      
+              <el-table
+                :data="scope.row.maters"
+                class="inner_table"
+              >
+                <el-table-column prop="materId" label="物料名称" />
+                <el-table-column prop="totalNumber" label="订单数量" />
+                <el-table-column prop="alreadyNumber" label="已交数量" />
+                <el-table-column prop="notAlreadyNumber" label="未交数量" />
+              </el-table>
+              <div class="no_data" v-show="scope.row.maters.length == 0">
+              <SvgIcon name="table404" :icon-style="{ width: '100%' }" />
+              <p>暂无物料信息</p>
+            </div>
+            </div>
+          
+          </div>
         </template>
+
         <template #tableHeader="scope">
           <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增订单</el-button>
+          <el-button type="primary" :icon="Upload" plain @click="leadOrder">导入订单</el-button>
           <el-button type="primary" :icon="Upload" plain @click="batchAdd">批量添加订单</el-button>
           <el-button type="primary" :icon="Download" plain @click="downloadFile">导出订单数据</el-button>
           <el-button
@@ -56,6 +80,7 @@
     </div>
     <UserDrawer ref="drawerRef" />
     <ImportExcel ref="dialogRef" />
+    <Dialog ref="leadRef" />
   </div>
 </template>
 
@@ -74,10 +99,12 @@ import { ColumnProps } from "@/components/ProTable/interface";
 import {useMapStore} from '@/stores/modules/map'
 import {useDictStore} from '@/stores/modules/dict'
 import SvgIcon from "@/components/SvgIcon/index.vue";
+import Dialog from "@/views/order/orderTable/components/Dialog.vue"; 
 const mapStote = useMapStore();
 const dictStore = useDictStore()
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
+const leadRef =ref(null)
 const dataCallback = (data) => {    // 数据回调
     return {
       list: data.records,
@@ -88,6 +115,9 @@ onMounted(async () => {
   await dictStore.loadDicts(['cust','user','mater']);
   
 });
+const leadOrder = () => {
+  leadRef.value?.open();
+};
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
   { type: "expand", label: "展开", width: 85 },
@@ -191,14 +221,59 @@ const batchAdd = () => {
 </script>
 
 <style lang="scss" scoped>
-.Order-container {
+.protable {
   display: flex;
   width: 100%;
   height: 91%;
 }
-.expand_div{
-  margin: 0px 200px 10px 200px;
-  border-radius: 10px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+// .expand_div{
+//   margin: 0px 200px 10px 200px;
+//   border-radius: 10px;
+//   box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+// }
+/* 整体面板（关键：去卡片感） */
+.detail_panel {
+  padding:  0!important;
+  background: #fff;
+  padding: 16px 20px;
+}
+
+/* 明细区域 */
+.detail_body {
+  margin-left: 100px;
+  padding:  0!important;
+  width: auto;
+  background: #fff;
+}
+
+/* 标题（像图二左侧灰块） */
+.detail_body .title {
+  padding: 10px 14px;
+  font-weight: 600;
+  border-bottom: 1px solid #fff;
+  background: #fff;
+}
+
+/* 子表：去掉“突兀感” */
+.inner_table {
+  border: none;
+  background: #fff;
+}
+
+/* 去掉分割线 */
+.inner_table .el-table__inner-wrapper::before {
+  display: none;
+}
+
+/* 表头风格（关键点） */
+.inner_table th {
+  background: #fff !important;
+  color: #606266;
+  font-weight: 500;
+}
+
+/* 行 hover */
+.inner_table .el-table__row:hover > td {
+  background: #f5f7fa !important;
 }
 </style>

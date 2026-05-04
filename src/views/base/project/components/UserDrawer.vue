@@ -10,7 +10,7 @@
       :hide-required-asterisk="drawerProps.isView"
     >
       <el-form-item label="项目编号" prop="num">
-        <el-input v-model="drawerProps.row.num" placeholder="请填入编号" clearable></el-input>
+        <el-input v-model="drawerProps.row.num" placeholder="默认生成(可不填)" clearable></el-input>
       </el-form-item>
       <el-form-item label="项目名称" prop="name">
         <el-input v-model="drawerProps.row.name" placeholder="请填入名称" clearable></el-input>
@@ -20,19 +20,6 @@
           <el-option v-for="item in drawerProps.custMapList" :key="item.custId" :label="item.custName" :value="item.custId" />
         </el-select>
       </el-form-item>
-       <!-- 物料明细 -->
-        <!-- 
-        <el-form-item label="物料明细" prop="maters">
-        <div class="mater-detail">
-          <h1>物料列表</h1>
-          <div v-for="(material, index) in drawerProps.row.maters" :key="index" class="mater-row">
-            <el-input v-model="material.mateNum" placeholder="请填入编号" clearable style="width: 60%; margin-left: 20px"></el-input>
-            <el-input v-model="material.mateName" placeholder="请填入名称" clearable style="width: 60%; margin:0 20px 0 10px"></el-input>
-            <el-button type="danger" icon="Delete" @click="removeMaterial(index)">删除</el-button>
-          </div>
-          <el-button class="mater-button" type="primary" icon="Plus" @click="addMaterial">添加物料</el-button>
-        </div>
-      </el-form-item> -->
       <el-form-item label="项目状态" prop="active">
         <el-select v-model="drawerProps.row.active" placeholder="请选择项目状态" clearable>
           <el-option v-for="item in stateMap" :key="item.value" :label="item.label" :value="item.value" />
@@ -57,7 +44,7 @@ import {useDictStore} from '@/stores/modules/dict'
 const dictStore = useDictStore()
 // 验证规则
 const rules = reactive({
-  num: [{ required: true, message: "请填写项目编号" }],
+  num: [{ required: false, message: "默认生成(可不填)" }],
   name: [{ required: true, message: "请填写项目名称" }],
   custId: [{ required: true, message: "请选择项目客户" }],
   active:[{ required: true, message: "请选择状态" }],

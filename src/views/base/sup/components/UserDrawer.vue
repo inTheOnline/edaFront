@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="drawerVisible" :destroy-on-close="true" size="500px" :title="`${drawerProps.title}客户`">
+  <el-drawer v-model="drawerVisible" :destroy-on-close="true" size="500px" :title="`${drawerProps.title}供应商`">
     <el-form
       ref="ruleFormRef"
       label-width="100px"
@@ -9,8 +9,8 @@
       :model="drawerProps.row"
       :hide-required-asterisk="drawerProps.isView"
     >
-      <el-form-item label="客户名称" prop="supName">
-        <el-input v-model="drawerProps.row.supName" placeholder="请填入客户名称" clearable></el-input>
+      <el-form-item label="供应商名称" prop="supName">
+        <el-input v-model="drawerProps.row.supName" placeholder="请填入供应商名称" clearable></el-input>
       </el-form-item>
       <el-form-item label="简称" prop="callName">
         <el-input v-model="drawerProps.row.callName" placeholder="请填入简称" clearable></el-input>
@@ -49,7 +49,7 @@ onMounted(async () => {
 });
 // 验证规则
 const rules = reactive({
-  workName: [{ required: true, message: "请填写客户名称" }],
+  workName: [{ required: true, message: "请填写供应商名称" }],
   remark: [{ required: false, message: "备注" }],
 });
 const drawerVisible = ref(false);
@@ -78,7 +78,7 @@ const handleSubmit = () => {
     if (!valid) return;
     try {
       await drawerProps.value.api!(drawerProps.value.row);
-      ElMessage.success({ message: `${drawerProps.value.title}客户成功！` });
+      ElMessage.success({ message: `${drawerProps.value.title}供应商成功！` });
       drawerProps.value.getTableList!();
       drawerVisible.value = false;
       console.log(drawerProps.value.row);

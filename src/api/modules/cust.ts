@@ -5,6 +5,7 @@ export const getAllCust = (params: ReqPage) => {
   return http.get<Cust[]>("/cust/getAll", params);
 }
 export const addCust = (cust: Cust ) => {
+  console.log(cust);
   return http.post<any>("/cust/add", cust);
 }
 export const delectCusts = (ids: number[] ) => {
@@ -12,4 +13,8 @@ export const delectCusts = (ids: number[] ) => {
 }
 export const getIdMap = () => {
   return http.get<CustMap[]>("/cust/getIdMap",{ });
+}
+
+export const deleteCust = (id: number) => {
+  return http.delete(`/cust/delete/${id}`);
 }
