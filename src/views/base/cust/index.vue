@@ -72,8 +72,8 @@ const columns: ColumnProps[] = reactive([
   {
     label: "状态",
     prop: "active", tag: true,
-     enum: getStateApi, 
-     fieldNames: { label: "state", value: "value" },
+    enum: computed(() => {return dictStore.dictMap['state'];}),
+    fieldNames: { label: "label", value: "value" },
   },
   {
     label: "备注",

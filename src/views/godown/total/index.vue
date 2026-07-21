@@ -1,7 +1,8 @@
 <template>
   <div class="mater-container">
-    <div>
+    <div class="table-panel">
       <ProTable
+        class="main-table"
         :columns="columns"
         :request-api="getTotal"
         :dataCallback="dataCallback"
@@ -159,5 +160,16 @@ const downloadFile = async () => {
   margin: 0px 200px 10px 200px;
   border-radius: 10px;
   box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+}
+.mater-container,
+.table-panel{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.main-table{
+  height: 100%;
+  min-height: 0;
 }
 </style>

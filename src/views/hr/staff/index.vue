@@ -1,6 +1,6 @@
 <template>
   <div class="work-container">
-    <div>
+    <div class="main-proTable">
       <ProTable
         :columns="columns"
         :request-api="getAll"
@@ -30,12 +30,14 @@
         <template #operation="scope">
           <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">查看</el-button>
           <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', scope.row)">编辑</el-button>
+          <el-button type="primary" link :icon="Document" @click="openAttachmentDialog(scope.row)">资料</el-button>
           <el-button type="primary" link :icon="Delete" @click="deleteSelected(scope.row.id)">删除</el-button>
         </template>
       </ProTable>
     </div>
     <UserDrawer ref="drawerRef" />
     <ImportExcel ref="dialogRef" />
+    <StaffAttachmentDialog ref="attachmentDialogRef" />
   </div>
 </template>
 
@@ -43,19 +45,22 @@
 import { ref, reactive,onMounted,computed } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
-import { getAll,addStaff,deleteMany,deleteStaff,addManyStaff,getModel,editStaff,getChecksysMap,getExcel } from "@/api/modules/hr";
+import { getAll,addStaff,deleteStaff,addManyStaff,getModel,editStaff,getChecksysMap,getExcel } from "@/api/modules/hr";
 import { getDepartmentApi } from "@/api/modules/department";
 import { getSex } from "@/api/modules/sex";
 import { getStateApi } from "@/api/modules/outgoing";
 import { useDownload } from "@/hooks/useDownload";
 import UserDrawer from "@/views/hr/staff/components/UserDrawer.vue";
-import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
+import StaffAttachmentDialog from "@/views/hr/staff/components/StaffAttachmentDialog.vue";
+import { CirclePlus, Delete, EditPen, Download, Upload, View, Document } from "@element-plus/icons-vue"; 
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import {useDictStore} from '@/stores/modules/dict'
+import type { Staff } from "@/api/interface/hr";
 const dictStore = useDictStore()
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
+const attachmentDialogRef = ref<InstanceType<typeof StaffAttachmentDialog> | null>(null);
 const dataCallback = (data) => {    // 数据回调
     return {
       list: data.records,
@@ -64,6 +69,12 @@ const dataCallback = (data) => {    // 数据回调
 };
 const stateMap = computed(() => dictStore.dictMap['state']);
 const checksysMap = ref()
+const socialMap = [
+  { label: "深圳一档", value: 1, tagType: "success" },
+  { label: "深圳二档", value: 2, tagType: "success" },
+  { label: "深圳三档", value: 3, tagType: "success" },
+  { label: "否", value: 0, tagType: "info" },
+];
 onMounted(async ()=>{
   const { data:data1 } = await getChecksysMap();
   await dictStore.loadDicts(['depart', 'state']);
@@ -153,7 +164,39 @@ const columns: ColumnProps[] = reactive([
     fieldNames: { label: "checksys", value: "id" },
     width: 150,
   },
-  { prop: "operation", label: "操作", fixed: "right", width: 330 },
+  {
+    label: "劳动合同截止日期",
+    prop: "contractDate",
+    width: 150,
+  },
+  {
+    label: "是否购买社保",
+    prop: "social",
+    tag: true,
+    enum: socialMap,
+    width: 130,
+  },
+  {
+    label: "银行卡号",
+    prop: "bankCard",
+    width: 220,
+  },
+  {
+    label: "开户银行",
+    prop: "bankBranch",
+    minWidth: 160,
+  },
+  {
+    label: "开户支行详情",
+    prop: "bankDetail",
+    minWidth: 200,
+  },
+  {
+    label: "备注",
+    prop: "remark",
+    minWidth: 180,
+  },
+  { prop: "operation", label: "操作", fixed: "right", width: 380 },
 ]);
 // 打开抽屉
 const openDrawer = async (title: string, row: Object = {}) => {
@@ -175,6 +218,9 @@ const openDrawer = async (title: string, row: Object = {}) => {
     stateMap: stateMaped,
   };
   drawerRef.value?.acceptParams(params);
+};
+const openAttachmentDialog = (row: Staff) => {
+  attachmentDialogRef.value?.acceptParams({ row });
 };
 
 // 删除已选项目
@@ -200,10 +246,6 @@ const batchAdd = () => {
   };
   dialogRef.value?.acceptParams(params);
 };
-// 编辑职工
-const edit = async (row: any) => {
-  await editStaff(row);
-};
 </script>
 
 <style lang="scss" scoped>
@@ -211,5 +253,9 @@ const edit = async (row: any) => {
   display: flex;
   width: 100%;
   height: 91%;
+}
+.main-proTable{
+  height: 100%;
+  min-height: 0;
 }
 </style>

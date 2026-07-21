@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="批量新增外发回货" width="980px" :close-on-click-modal="false">
+  <el-dialog v-model="visible" title="批量新增外发回货" width="1100px" :close-on-click-modal="false">
     <div class="batch-shell">
       <section class="hero-panel">
         <div>
@@ -64,6 +64,11 @@
           <el-input-number v-model="row.number" :min="1" style="width: 100%" />
         </template>
       </el-table-column>
+      <el-table-column label="仓库同步" width="110" align="center">
+        <template #default="{ row }">
+          <el-switch v-model="row.syncWarehouse" />
+        </template>
+      </el-table-column>
       <el-table-column label="行备注" min-width="220">
         <template #default="{ row }">
           <el-input v-model="row.remark" />
@@ -123,13 +128,14 @@ const headerForm = ref({
   outbackNum: "",
   supId: "" as string | number,
   supName: "",
-  state: 101 as string | number,
+  state: 901 as string | number,
   outbackRemark: ""
 });
 
 type BatchRow = {
   outItemId: number;
   number: number;
+  syncWarehouse: boolean;
   remark: string;
   displayText: string;
   supId?: string | number;
@@ -187,6 +193,7 @@ const addRow = () => {
   rows.value.push({
     outItemId: 0,
     number: 1,
+    syncWarehouse: true,
     remark: "",
     displayText: ""
   });
@@ -207,7 +214,7 @@ const open = (params: BatchParams) => {
     outbackNum: "",
     supId: "",
     supName: "",
-    state: normalizedStateOptions.value[0]?.value ?? 101,
+    state: normalizedStateOptions.value[0]?.value ?? 901,
     outbackRemark: ""
   };
   rows.value = [];
@@ -224,10 +231,11 @@ const openSelector = (index: number) => {
   });
 };
 
-const applyOutItem = (row: OutformRecord, index: number, keepRemark = "") => {
+const applyOutItem = (row: OutformRecord, index: number, keepRemark = "", syncWarehouse = true) => {
   rows.value[index] = {
     outItemId: row.id,
     number: Number(row.notbackNumber || 1),
+    syncWarehouse,
     remark: keepRemark,
     displayText: buildDisplayText(row),
     supId: row.supId,
@@ -241,7 +249,7 @@ const applyOutItem = (row: OutformRecord, index: number, keepRemark = "") => {
 
 const handleSelectOutItem = (row: OutformRecord) => {
   if (currentIndex < 0) return;
-  applyOutItem(row, currentIndex, rows.value[currentIndex]?.remark || "");
+  applyOutItem(row, currentIndex, rows.value[currentIndex]?.remark || "", rows.value[currentIndex]?.syncWarehouse ?? true);
 };
 
 const handleSelectOutItems = (selected: OutformRecord[]) => {
@@ -254,12 +262,18 @@ const handleSelectOutItems = (selected: OutformRecord[]) => {
 
   if (currentIndex < 0) currentIndex = rows.value.length ? rows.value.length - 1 : 0;
   if (!rows.value[currentIndex]) addRow();
-  applyOutItem(candidates[0], currentIndex, rows.value[currentIndex]?.remark || "");
+  applyOutItem(
+    candidates[0],
+    currentIndex,
+    rows.value[currentIndex]?.remark || "",
+    rows.value[currentIndex]?.syncWarehouse ?? true
+  );
 
   candidates.slice(1).forEach(item => {
     rows.value.push({
       outItemId: item.id,
       number: Number(item.notbackNumber || 1),
+      syncWarehouse: true,
       remark: "",
       displayText: buildDisplayText(item),
       supId: item.supId,
@@ -316,12 +330,13 @@ const submit = async () => {
       backDate: headerForm.value.backDate,
       outbackNum: headerForm.value.outbackNum,
       supId: headerForm.value.supId,
-      state: Number(headerForm.value.state || 101),
+      state: Number(headerForm.value.state || 901),
       outbackRemark: headerForm.value.outbackRemark
     },
     rows: rows.value.map(item => ({
       outItemId: item.outItemId,
       number: Number(item.number),
+      syncWarehouse: item.syncWarehouse,
       remark: item.remark
     }))
   });

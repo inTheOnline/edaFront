@@ -58,17 +58,18 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, toRefs } from "vue";
+import { ref, reactive, computed, toRefs,onMounted } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import { getAllProject, addProject, delectProjects } from "@/api/modules/project";
 import UserDrawer from "@/views/base/project/components/UserDrawer.vue";
 import { CirclePlus, Delete, View, EditPen, Refresh } from "@element-plus/icons-vue";
-import { getStateApi } from "@/api/modules/outgoing";
 import { getIdMap } from "@/api/modules/cust";
 import { ElMessage } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import { Project } from "@/api/interface/project";
 import SvgIcon from "@/components/SvgIcon/index.vue";
+import { useDictStore } from "@/stores/modules/dict";
+const dictStore = useDictStore();
 
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
@@ -79,6 +80,12 @@ const dataCallback = (data) => {
     total: data.total,
   };
 };
+onMounted(async () => {
+  await dictStore.loadDicts(['state']);
+});
+const getStateApi = computed(() => {
+  return dictStore.dictMap['state'];
+});
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
   { type: "expand", label: "展开", width: 85 },
@@ -115,7 +122,7 @@ const columns: ColumnProps[] = reactive([
     label: "状态",
     prop: "active",
     enum: getStateApi,
-    fieldNames: { label: "state", value: "value" },
+    fieldNames: { label: "label", value: "value" },
     tag: true,
   },
   {

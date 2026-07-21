@@ -19,3 +19,4 @@
 
 ## 接口文档
 - 以 [API.md](./API.md) 为准
+- 外发首页看板接口见 [HOME_API.md](./HOME_API.md)

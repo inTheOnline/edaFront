@@ -15,6 +15,7 @@
 - 页面使用 authStore.isExistence 控制 price:look 权限。
 - 物料、客户、项目等下拉依赖 dictStore.loadDicts。
 - 新增/编辑走本目录 UserDrawer；批量价格调整走 BatchAddDialog。
+- 价格调整弹窗只提交物料、新价、生效日期、调价原因和批次；操作人和创建时间由后端自动生成。
 - 删除逻辑分为批量删除 deleteMany 和单个删除 deleteMaterById 两套。
 - 代码中误引入了 supWork.deleteById 但并未真正使用，修改时不要被误导。
 

@@ -969,10 +969,13 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .route-page {
-  --workspace-panel-height: clamp(700px, calc(100vh - 250px), 940px);
   display: grid;
-  gap: 16px;
-  min-height: calc(100vh - 110px);
+  grid-template-rows: minmax(0, 2fr) auto minmax(0, 8fr);
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
   padding: 18px;
   background:
     radial-gradient(circle at top left, rgba(186, 230, 253, 0.48), transparent 24%),
@@ -980,17 +983,19 @@ onMounted(() => {
 }
 
 .hero {
+  grid-row: 1;
   position: relative;
   display: grid;
-  gap: 18px;
+  gap: 6px;
   overflow: hidden;
-  padding: 24px 26px;
+  padding: 16px 26px;
   border-radius: 30px;
   background:
     linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(3, 105, 161, 0.92) 55%, rgba(14, 116, 144, 0.88)),
     #0f172a;
   box-shadow: 0 22px 60px rgba(15, 23, 42, 0.16);
   color: #e2e8f0;
+  min-height: 0;
 
   &__aurora {
     position: absolute;
@@ -1068,13 +1073,14 @@ onMounted(() => {
   &__actions {
     display: flex;
     gap: 12px;
+    transform: translateY(-4px);
   }
 }
 
 .stat-chip {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
+  padding: 10px 16px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1095,19 +1101,24 @@ onMounted(() => {
 }
 
 .mode-alert {
+  grid-row: 2;
   border-radius: 18px;
 }
 
 .workspace {
+  grid-row: 3;
   display: grid;
   grid-template-columns: 430px minmax(0, 1fr);
   gap: 18px;
   align-items: stretch;
+  min-height: 0;
+  overflow: visible;
 }
 
 .detail-stage {
   display: grid;
-  min-height: 100%;
+  min-height: 0;
+  overflow: visible;
 }
 
 .panel {
@@ -1128,16 +1139,28 @@ onMounted(() => {
   }
 
   &--tree {
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
-    min-height: var(--workspace-panel-height);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+
+    :deep(.el-card__body) {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
   }
 
   &--detail {
-    min-height: var(--workspace-panel-height);
+    height: 100%;
+    min-height: 0;
 
     :deep(.el-card__body) {
       height: 100%;
+      overflow: auto;
+      box-sizing: border-box;
     }
   }
 }
@@ -1191,7 +1214,7 @@ onMounted(() => {
 }
 
 .tree-scroll {
-  height: calc(var(--workspace-panel-height) - 118px);
+  flex: 1;
   min-height: 0;
 }
 
@@ -1469,10 +1492,11 @@ onMounted(() => {
 @media (max-width: 1100px) {
   .workspace {
     grid-template-columns: 1fr;
+    overflow-y: auto;
   }
 
   .tree-scroll {
-    height: 520px;
+    min-height: 520px;
   }
 
   .detail-stage {

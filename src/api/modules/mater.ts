@@ -39,5 +39,5 @@ export const batchChangePriceApi = (row:object[]) =>{
   return http.post<ResultData>('/mater/batchChangePrice',row);
 }
 export const getPriceMap =()=>{
-  return http.get<ResultData>(`/mater/priceMap`);
+  return http.get<Record<string, number>>(`/mater/priceMap`);
 }

@@ -14,7 +14,6 @@
         striped
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
         :virtualized="true"
-        :table-height="'70vh'"
         @row-click="handleRowClick"
       >
         <template #tableHeader="scope">
@@ -357,11 +356,13 @@ const batchAdd = async () => {
 .ProTable-container {
   display: flex;
   width: 100%;
-  height: 70%;
+  height: 100%;
+  min-height: 0;
 }
 .ProTable{
 
-  height: 75vh;
+  height: 100%;
+  min-height: 0;
 }
 
 .totalLabel {

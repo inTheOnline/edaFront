@@ -61,7 +61,7 @@ const date = (name: string): QrLayoutObjectDataSource => ({
 const serial = (name: string): QrLayoutObjectDataSource => ({
   ...createObjectDataSource(name),
   sourceType: "serial",
-  serial: { start: "001", end: "100", digits: 3, repeat: 1, step: 1 }
+  serial: { start: "001", direction: "increment", step: 1 }
 });
 
 const compose = (name: string, value: string): QrLayoutObjectDataSource => ({

@@ -149,6 +149,7 @@ export interface OutbackBatchPayload {
   rows: Array<{
     outItemId: number;
     number: number;
+    syncWarehouse: boolean;
     remark?: string;
   }>;
 }

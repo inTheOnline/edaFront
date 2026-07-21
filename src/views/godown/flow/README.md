@@ -31,6 +31,7 @@
 - 列表页统一围绕 ProTable 组织，列定义集中在 columns 中，搜索项直接写在列配置里。
 - 分页序号通常通过 proTableRef.pageable.pageNum/pageSize 手动计算，不要随意改成另一套写法。
 - 新增/查看/编辑通常通过本目录或复用目录下的 Drawer/Dialog 组件完成，父页用 acceptParams 传 title、isView、row、api、getTableList。
+- UserDrawer 新增时日期默认补当天；编辑/查看保留传入 row.date。
 - 字典类枚举优先走 dictStore.loadDicts 或接口 enum，不要在页面里重复硬编码。
 - 导入导出优先复用 ImportExcel 和 useDownload。
 - 删除后通常调用 reset 刷新表格，保持现有交互一致。

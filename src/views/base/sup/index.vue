@@ -27,7 +27,7 @@
         <template #operation="scope">
           <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">查看</el-button>
           <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', scope.row)">编辑</el-button>
-          <el-button type="primary" link :icon="Delete" @click="delect(scope.row)">删除</el-button>
+          <el-button type="primary" link :icon="Delete" @click="deleteSupById(scope.row)">删除</el-button>
         </template>
       </ProTable>
     </div>
@@ -38,16 +38,23 @@
 <script lang="ts" setup>
 import { ref, reactive, computed, toRefs,onMounted } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
-import { getAllSup,addSup,delectSups } from "@/api/modules/sup.ts";
+import { getAllSup,addSup,delectSups } from "@/api/modules/sup";
 import { getStateApi } from "@/api/modules/outgoing";
 import UserDrawer from "@/views/base/sup/components/UserDrawer.vue";
 import { CirclePlus, Delete, View, EditPen, Refresh } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import {useDictStore} from '@/stores/modules/dict'
+import { deleteById } from "@/api/modules/supWork";
 const dictStore = useDictStore()
 onMounted(async () => {
-  await dictStore.loadDicts(['work']);
+  await dictStore.loadDicts(['work','state']);
+});
+const workMap = computed(() => {
+  return dictStore.dictMap['work'] || [];
+});
+const stateMap = computed(() => {
+  return dictStore.dictMap['state'] || [];
 });
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
@@ -81,8 +88,8 @@ const columns: ColumnProps[] = reactive([
   {
     label: "状态",
     prop: "state", tag: true,
-     enum: getStateApi, 
-     fieldNames: { label: "state", value: "value" },
+     enum: stateMap,
+     fieldNames: { label: "label", value: "value" },
   },
   {
     label: "系数",
@@ -91,7 +98,7 @@ const columns: ColumnProps[] = reactive([
   {
     label: "供货类型",
     prop: "workId",
-    enum: dictStore.dictMap['work'],
+    enum: workMap,
     tag: true,
   },
   {
@@ -120,7 +127,12 @@ const deleteSelected = async(ids: number[]): Promise<void> => {
   ElMessage.success("删除供应商成功！`")
   proTableRef.value?.getTableList();
 };
-
+const deleteSupById = async(row) =>{
+  const ids = [row.id];
+  await delectSups(ids);
+  ElMessage.success("删除供应商成功！`")
+  proTableRef.value?.getTableList();
+}
 // 编辑供应商
 const editSup = async (row: any) => {
   console.log("编辑数据", row);

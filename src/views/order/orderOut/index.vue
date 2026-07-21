@@ -44,7 +44,7 @@ import { outTypeEnum } from "@/enums/orderOutEnum";
 import BatchAddDialog from "./components/BatchAddDialog.vue";
 import { getDepartmentApi } from "@/api/modules/department";
 import { getStateApi } from "@/api/modules/outgoing";
-import { useDownload } from "@/hooks/useDownload";
+import * as XLSX from "xlsx";
 import UserDrawer from "@/views/order/orderTable/components/UserDrawer.vue";
 import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh, Right } from "@element-plus/icons-vue";
 import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
@@ -216,19 +216,44 @@ const deleteSelected = async (ids: number[]) => {
 // 导出出货列表
 const downloadFile = async () => {
   try {
-    await ElMessageBox.confirm("确认导出用户数据?", "温馨提示", { type: "warning" });
-    const loading = ElLoading.service({ text: "导出中..." });
-    try {
-      useDownload(getModel, "出货列表", proTableRef.value?.searchParam);
-      ElMessage.success("导出成功");
-    } catch (error) {
-      ElMessage.error("导出失败");
-      console.error("Export failed:", error);
-    } finally {
-      loading.close();
-    }
+    await ElMessageBox.confirm("确认导出当前筛选条件下的全部订单出货数据吗？", "导出确认", { type: "warning" });
   } catch {
-    ElMessage.info("已取消导出");
+    return;
+  }
+  const loading = ElLoading.service({ text: "正在导出..." });
+  try {
+    const searchParam = { ...(proTableRef.value?.searchParam || {}) };
+    const firstPage = (await getOrderOut({ ...searchParam, pageNum: 1, pageSize: 1 } as any)).data;
+    const records = firstPage.total
+      ? (await getOrderOut({ ...searchParam, pageNum: 1, pageSize: firstPage.total } as any)).data.records
+      : [];
+    const getOption = (options: readonly any[] = [], value: unknown) => options.find(item => String(item.value) === String(value));
+    const worksheet = XLSX.utils.json_to_sheet(
+      records.map(item => {
+        const mater = getOption(materEnum.value, item.materId);
+        return {
+          时间: item.time || "",
+          送货单号: item.num || "",
+          订单号: item.orderNum || getOption(orderEnum.value, item.orderId)?.label || "",
+          产品编号: item.materNum || mater?.num || "",
+          产品名称: item.materName || mater?.label || "",
+          送货数量: item.number,
+          创建人: item.createUserName || getOption(userEnum.value, item.createUserId)?.label || "",
+          状态: item.statusLabel || getOption(outTypeEnum, item.status)?.label || item.status,
+          备注: item.remark || ""
+        };
+      }),
+      { header: ["时间", "送货单号", "订单号", "产品编号", "产品名称", "送货数量", "创建人", "状态", "备注"] }
+    );
+    worksheet["!cols"] = [20, 20, 20, 18, 24, 12, 16, 12, 24].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "订单出货表");
+    XLSX.writeFile(workbook, `订单出货表_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success(`成功导出 ${records.length} 条数据`);
+  } catch {
+    ElMessage.error("导出失败，请稍后重试");
+  } finally {
+    loading.close();
   }
 };
 // 批量添加出货

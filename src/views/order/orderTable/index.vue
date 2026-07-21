@@ -91,10 +91,10 @@ import ImportExcel from "@/components/ImportExcel/index.vue";
 import { getOrderAll,getModel,addManyOrder,deleteMany,addOrder,editOrder,delect } from "@/api/modules/order";
 import { getDepartmentApi } from "@/api/modules/department";
 import { getStateApi } from "@/api/modules/outgoing";
-import { useDownload } from "@/hooks/useDownload";
+import * as XLSX from "xlsx";
 import UserDrawer from "@/views/order/orderTable/components/UserDrawer.vue";
 import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import {useMapStore} from '@/stores/modules/map'
 import {useDictStore} from '@/stores/modules/dict'
@@ -203,9 +203,41 @@ const deleteSelected = async(ids: number[]): Promise<void> => {
 };
 // 导出订单列表
 const downloadFile = async () => {
-  ElMessageBox.confirm("确认导出用户数据?", "温馨提示", { type: "warning" }).then(() =>
-    useDownload(getModel, "订单列表", proTableRef.value?.searchParam)
-  );
+  try {
+    await ElMessageBox.confirm("确认导出当前筛选条件下的全部订单数据吗？", "导出确认", { type: "warning" });
+  } catch {
+    return;
+  }
+  const loading = ElLoading.service({ text: "正在导出..." });
+  try {
+    const searchParam = { ...(proTableRef.value?.searchParam || {}) };
+    const firstPage = (await getOrderAll({ ...searchParam, pageNum: 1, pageSize: 1 } as any)).data;
+    const records = firstPage.total
+      ? (await getOrderAll({ ...searchParam, pageNum: 1, pageSize: firstPage.total } as any)).data.records
+      : [];
+    const getDictLabel = (type: string, value: unknown) =>
+      dictStore.dictMap[type]?.find(item => String(item.value) === String(value))?.label || value || "";
+    const worksheet = XLSX.utils.json_to_sheet(
+      records.map(item => ({
+        订单编号: item.orderNum || "",
+        开始时间: item.createTime || "",
+        完成时间: item.lateTime || "",
+        状态: item.stateLabel || item.stateName || item.state,
+        客户: item.custName || getDictLabel("cust", item.custId),
+        创建人: item.createUserName || getDictLabel("user", item.createUserId)
+      })),
+      { header: ["订单编号", "开始时间", "完成时间", "状态", "客户", "创建人"] }
+    );
+    worksheet["!cols"] = [20, 20, 20, 14, 20, 16].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "订单详情");
+    XLSX.writeFile(workbook, `订单详情_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success(`成功导出 ${records.length} 条数据`);
+  } catch {
+    ElMessage.error("导出失败，请稍后重试");
+  } finally {
+    loading.close();
+  }
 };
 // 批量添加订单
 const dialogRef = ref<InstanceType<typeof ImportExcel> | null>(null);

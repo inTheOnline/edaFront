@@ -50,7 +50,39 @@
         style="width: 100%;"
         :disabled-date="(date) => date.getTime() > Date.now()"
       ></el-date-picker>
-    </el-form-item>
+      </el-form-item>
+      <el-form-item label="合同截止" prop="contractDate">
+      <!-- 日期选择器，支持选择日期+时间（也可仅选日期） -->
+      <el-date-picker
+        v-model="drawerProps.row.contractDate"
+        type="date"  
+        placeholder="请选择劳动合同截止日期"
+        format="YYYY-MM-DD" 
+        value-format="YYYY-MM-DD"
+        style="width: 100%;"
+        :disabled-date="(date) => date.getTime() < Date.now()"
+      ></el-date-picker>
+      </el-form-item>
+      <el-form-item label="购买社保" prop="social">
+        <el-select v-model="drawerProps.row.social" placeholder="请选择是否购买社保" clearable>
+          <el-option label="深圳一档" :value="1" />
+          <el-option label="深圳2档" :value="2" />
+          <el-option label="深圳三档" :value="3" />
+          <el-option label="否" :value="0" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="银行卡号" prop="bankCard">
+        <el-input v-model="drawerProps.row.bankCard" placeholder="请填入银行卡号" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="开户银行" prop="bankBranch">
+        <el-input v-model="drawerProps.row.bankBranch" placeholder="请填入开户银行" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="支行详情" prop="bankDetail">
+        <el-input v-model="drawerProps.row.bankDetail" placeholder="请填入开户支行详情" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="备注" prop="remark">
+        <el-input v-model="drawerProps.row.remark" type="textarea" :rows="3" placeholder="备注" clearable></el-input>
+      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="drawerVisible = false">取消</el-button>
@@ -73,6 +105,11 @@ const rules = reactive({
   phone: [{ required: true, message: "请填写手机号" }],
   edu: [{ required: false, message: "请填写学历" }],
   checksys: [{ required: true, message: "请输入考勤制度" }],
+  social: [{ required: false, message: "请选择是否购买社保" }],
+  bankCard: [{ required: false, message: "请填写银行卡号" }],
+  bankBranch: [{ required: false, message: "请填写开户银行" }],
+  bankDetail: [{ required: false, message: "请填写开户支行详情" }],
+  remark: [{ required: false, message: "备注" }],
 });
 const drawerVisible = ref(false);
 const drawerProps = ref<DrawerProps>({

@@ -15,6 +15,7 @@
       <template #tableHeader="scope">
         <el-button type="primary" class="hero-btn hero-btn--primary" :icon="CirclePlus" @click="openDrawer('新增')">新增回执</el-button>
         <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Upload" @click="openBatchDialog">批量增加</el-button>
+        <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Download" @click="exportExcel">导出 Excel</el-button>
         <el-button
           type="danger"
           plain
@@ -34,6 +35,16 @@
               <span class="selection-summary__value">{{ Number(numberTotal).toLocaleString() }}</span>
             </el-descriptions-item>
           </el-descriptions>
+          <el-button
+            type="primary"
+            plain
+            class="selection-summary__clear"
+            :icon="CircleClose"
+            :disabled="!scope.isSelected"
+            @click="cancelSelect"
+          >
+            取消选择
+          </el-button>
         </div>
       </template>
 
@@ -51,8 +62,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { CirclePlus, Delete, EditPen, Upload, View } from "@element-plus/icons-vue";
-import { ElMessageBox } from "element-plus";
+import { CircleClose, CirclePlus, Delete, Download, EditPen, Upload, View } from "@element-plus/icons-vue";
+import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
+import * as XLSX from "xlsx";
 import ProTable from "@/components/ProTable/index.vue";
 import type { ColumnProps, EnumProps } from "@/components/ProTable/interface";
 import { useDictStore } from "@/stores/modules/dict";
@@ -187,6 +199,52 @@ const handleRowClick = (row: OutbackRecord) => {
   proTableRef.value?.element?.toggleRowSelection(row);
 };
 
+const cancelSelect = () => {
+  proTableRef.value?.element?.clearSelection();
+};
+
+// 导出当前筛选条件下的全部回执
+const exportExcel = async () => {
+  try {
+    await ElMessageBox.confirm("确认导出当前筛选条件下的全部回执数据吗？", "导出确认", { type: "warning" });
+  } catch {
+    return;
+  }
+  const loading = ElLoading.service({ text: "正在导出..." });
+
+  try {
+    const searchParam = { ...(proTableRef.value?.searchParam || {}) };
+    const firstPage = await unwrapData(getOutbackPageApi({ ...searchParam, pageNum: 1, pageSize: 1 }));
+    const records = firstPage.total
+      ? (await unwrapData(getOutbackPageApi({ ...searchParam, pageNum: 1, pageSize: firstPage.total }))).records
+      : [];
+    const data = records.map(item => ({
+      回执日期: formatOutgoingDate(item.backDate),
+      回执单号: item.outbackNum,
+      对应外发单: item.subcNum || "",
+      供应商: item.supName || "",
+      物料编码: item.materNum || "",
+      物料名称: item.materName || "",
+      回执数量: item.number,
+      状态: item.stateLabel || item.state,
+      整单备注: item.outbackRemark || "",
+      行备注: item.remark || ""
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data, {
+      header: ["回执日期", "回执单号", "对应外发单", "供应商", "物料编码", "物料名称", "回执数量", "状态", "整单备注", "行备注"]
+    });
+    worksheet["!cols"] = [12, 20, 20, 18, 18, 22, 12, 12, 24, 24].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "委外回执");
+    XLSX.writeFile(workbook, `委外回执_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success(`成功导出 ${records.length} 条数据`);
+  } catch {
+    ElMessage.error("导出失败，请稍后重试");
+  } finally {
+    loading.close();
+  }
+};
+
 const deleteSelected = async (ids: number[]) => {
   if (!ids.length) return;
   try {
@@ -216,7 +274,12 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .outgoing-page {
-  min-height: calc(100vh - 120px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: 14px;
   background:
     radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 26%),
@@ -248,6 +311,7 @@ onMounted(async () => {
 .selection-summary {
   display: flex;
   align-items: center;
+  gap: 10px;
   margin-top: 8px;
 }
 
@@ -259,6 +323,10 @@ onMounted(async () => {
 .selection-summary__value {
   font-size: 18px;
   color: var(--el-color-primary);
+}
+
+.selection-summary__clear {
+  margin-left: 2px;
 }
 
 :deep(.table-main) {

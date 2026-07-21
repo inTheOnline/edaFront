@@ -180,6 +180,21 @@
             "isKeepAlive": true,
             "roles":"base"
           }
+        },
+        {
+          "path": "/buy/rawPurchase",
+          "name": "rawPurchase",
+          "component": "/buy/rawPurchase/index",
+          "meta": {
+            "icon": "Document",
+            "title": "原材料采购",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles":"rawPurchase"
+          }
         }
       ]
     },
@@ -255,6 +270,51 @@
             "isAffix": false,
             "isKeepAlive": false,
             "roles":"base"
+          }
+        },
+        {
+          "path": "/hr/salaryNorm",
+          "name": "salaryNorm",
+          "component": "/hr/salaryNorm/index",
+          "meta": {
+            "icon": "Money",
+            "title": "工资标准",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles": "salaryNorm"
+          }
+        },
+        {
+          "path": "/hr/salary",
+          "name": "salary",
+          "component": "/hr/salary/index",
+          "meta": {
+            "icon": "Wallet",
+            "title": "工资明细",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles": "salary"
+          }
+        },
+        {
+          "path": "/hr/salaryLog",
+          "name": "salaryLog",
+          "component": "/hr/salaryLog/index",
+          "meta": {
+            "icon": "Document",
+            "title": "工资修改日志",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles": "salaryLog"
           }
         }
         ]

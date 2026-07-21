@@ -8,14 +8,23 @@
 ## 功能内容
 - 提供职工分页查询。
 - 支持新增、查看、编辑、单个删除、批量导入、导出。
+- 支持维护每个职工的人事资料附件。
 - 支持按姓名、部门、状态等字段筛选。
-- 展示工号、姓名、年龄、性别、部门、状态、身份证、手机号、学历、考勤制度等字段。
+- 展示工号、姓名、年龄、性别、部门、状态、身份证、手机号、学历、考勤制度、是否购买社保、银行卡号、开户银行、开户支行详情、备注等字段。
 
 ## 技术实现
 - 页面会先加载部门字典和考勤制度映射 getChecksysMap。
 - 表格列中的部门和性别通过 enum/dict 方式显示。
 - 抽屉打开时会额外传入 departmentMap、checksysMap、stateMap。
+- 职工资料新增/编辑支持 `social` 和 `remark`：`social` 取值 `1` 表示深圳一档，`2` 表示深圳2档，`3` 表示深圳三档，`0` 表示否。
+- 职工资料新增/编辑支持 `bankCard` 银行卡号、`bankBranch` 开户银行、`bankDetail` 开户支行详情。
+- 职工列表操作列中的“资料”按钮打开 `StaffAttachmentDialog`，支持上传、预览、下载、删除人事资料。
+- 人事资料默认类型为身份证、劳动合同、入职资料、银行卡、其他，前端允许用户自定义类型。
+- 人事资料仅支持 PDF、Word、Excel、JPG、PNG，单个文件最大 30MB。
 - 导入导出均走 hr 模块接口，属于当前项目比较标准的人员资料列表页。
+- 单个新增和批量导入职员时，后端自动创建全零工资标准。
+- 单删和批删职员时，职员与工资标准在同一事务内逻辑删除。
+- 重新新增相同身份证的已删除职员时恢复原 ID、更新职员资料，并恢复原工资标准。
 
 ## 后端 API
 - getAll => GET /hr/staff/all
@@ -26,6 +35,10 @@
 - addManyStaff => POST /hr/staff/addMany
 - getModel => DOWNLOAD /hr/staff/getModel
 - getExcel => DOWNLOAD /hr/staff/getExcel
+- getStaffAttachments => GET /hr/staff/{staffId}/attachments
+- uploadStaffAttachment => POST /hr/staff/{staffId}/attachments
+- deleteStaffAttachment => DELETE /hr/staff/attachments/{id}
+- downloadStaffAttachment => GET /hr/staff/attachments/{id}/download
 - getChecksysMap => GET /hr/checksys/getMap
 - getDepartmentApi => GET /department/getMap
 - getSex => 性别枚举接口

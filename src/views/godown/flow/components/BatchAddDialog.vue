@@ -139,20 +139,6 @@ const form = ref({
     remark: string;
   }>
 });
-// 工具函数：获取当前标准ISO日期时间（后端LocalDateTime默认完美解析）
-const getToday = () => {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  // 实时时分秒
-  const hours = date.getHours().toString().padStart(2, '0')
-  const minutes = date.getMinutes().toString().padStart(2, '0')
-  const seconds = date.getSeconds().toString().padStart(2, '0')
-  
-  // 核心：日期和时间用 T 连接（ISO标准！）
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
-}
 const getTodayDateOnly = () => {
   const date = new Date()
   const year = date.getFullYear()

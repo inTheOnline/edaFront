@@ -1,97 +1,99 @@
 <!-- 📚📚📚 Pro-Table 文档: https://juejin.cn/post/7166068828202336263 -->
 <template>
-  <!-- 查询表单 -->
-  <SearchForm
-    v-show="isShowSearch"
-    :search="_search"
-    :reset="_reset"
-    :columns="searchColumns"
-    :search-param="searchParam"
-    :search-col="searchCol"
-  />
+  <div class="pro-table-layout">
+    <!-- 查询表单 -->
+    <SearchForm
+      v-show="isShowSearch"
+      :search="_search"
+      :reset="_reset"
+      :columns="searchColumns"
+      :search-param="searchParam"
+      :search-col="searchCol"
+    />
 
-  <!-- 表格主体 -->
-  <div class="card table-main">
-    <!-- 表格头部 操作按钮 -->
-    <div class="table-header">
-      <div class="header-button-lf">
-        <slot name="tableHeader" :selected-list="selectedList" :selected-list-ids="selectedListIds" :is-selected="isSelected" />
-      </div>
-      <div v-if="toolButton" class="header-button-ri">
-        <slot name="toolButton">
-          <el-button v-if="showToolButton('refresh')" :icon="Refresh" circle @click="getTableList" />
-          <el-button v-if="showToolButton('setting') && columns.length" :icon="Operation" circle @click="openColSetting" />
-          <el-button
-            v-if="showToolButton('search') && searchColumns?.length"
-            :icon="Search"
-            circle
-            @click="isShowSearch = !isShowSearch"
-          />
-        </slot>
-      </div>
-    </div>
     <!-- 表格主体 -->
-    <el-table
-      ref="tableRef"
-      v-bind="$attrs"
-      :id="uuid"
-      :data="processTableData"
-      :border="border"
-      :row-key="rowKey"
-      @selection-change="selectionChange"
-      :virtualized="virtualized"
-      :height="tableHeight"
-      estimated-row-height="40"
-    >
-      <slot />
-      <template v-for="item in tableColumns" :key="item">
-        <el-table-column
-          v-if="item.type && columnTypes.includes(item.type)"
-          v-bind="item"
-          :align="item.align ?? 'center'"
-          :reserve-selection="item.type == 'selection'"
-        >
-          <template #default="scope">
-            <template v-if="item.type == 'expand'">
-              <component :is="item.render" v-bind="scope" v-if="item.render" />
-              <slot v-else :name="item.type" v-bind="scope" />
-            </template>
-            <el-radio v-if="item.type == 'radio'" v-model="radio" :label="scope.row[rowKey]">
-              <i></i>
-            </el-radio>
-            <el-tag v-if="item.type == 'sort'" class="move">
-              <el-icon> <DCaret /></el-icon>
-            </el-tag>
-          </template>
-        </el-table-column>
-        <TableColumn v-else :column="item">
-          <template v-for="slot in Object.keys($slots)" #[slot]="scope">
-            <slot :name="slot" v-bind="scope" />
-          </template>
-        </TableColumn>
-      </template>
-      <template #append>
-        <slot name="append" />
-      </template>
-      <template #empty>
-        <div class="table-empty">
-          <slot name="empty">
-            <img src="@/assets/images/notData.png" alt="notData" />
-            <div>暂无数据</div>
+    <div class="card table-main">
+      <!-- 表格头部 操作按钮 -->
+      <div class="table-header">
+        <div class="header-button-lf">
+          <slot name="tableHeader" :selected-list="selectedList" :selected-list-ids="selectedListIds" :is-selected="isSelected" />
+        </div>
+        <div v-if="toolButton" class="header-button-ri">
+          <slot name="toolButton">
+            <el-button v-if="showToolButton('refresh')" :icon="Refresh" circle @click="getTableList" />
+            <el-button v-if="showToolButton('setting') && columns.length" :icon="Operation" circle @click="openColSetting" />
+            <el-button
+              v-if="showToolButton('search') && searchColumns?.length"
+              :icon="Search"
+              circle
+              @click="isShowSearch = !isShowSearch"
+            />
           </slot>
         </div>
-      </template>
-    </el-table>
-    <slot name="pagination">
-      <Pagination
-        v-if="pagination"
-        :pageable="pageable"
-        :handle-size-change="handleSizeChange"
-        :handle-current-change="handleCurrentChange"
-      />
-    </slot>
+      </div>
+      <!-- 表格主体 -->
+      <el-table
+        ref="tableRef"
+        v-bind="$attrs"
+        :id="uuid"
+        :data="processTableData"
+        :border="border"
+        :row-key="rowKey"
+        @selection-change="selectionChange"
+        :virtualized="virtualized"
+        :height="tableHeight"
+        estimated-row-height="40"
+      >
+        <slot />
+        <template v-for="item in tableColumns" :key="item">
+          <el-table-column
+            v-if="item.type && columnTypes.includes(item.type)"
+            v-bind="item"
+            :align="item.align ?? 'center'"
+            :reserve-selection="item.type == 'selection'"
+          >
+            <template #default="scope">
+              <template v-if="item.type == 'expand'">
+                <component :is="item.render" v-bind="scope" v-if="item.render" />
+                <slot v-else :name="item.type" v-bind="scope" />
+              </template>
+              <el-radio v-if="item.type == 'radio'" v-model="radio" :label="scope.row[rowKey]">
+                <i></i>
+              </el-radio>
+              <el-tag v-if="item.type == 'sort'" class="move">
+                <el-icon> <DCaret /></el-icon>
+              </el-tag>
+            </template>
+          </el-table-column>
+          <TableColumn v-else :column="item">
+            <template v-for="slot in Object.keys($slots)" #[slot]="scope">
+              <slot :name="slot" v-bind="scope" />
+            </template>
+          </TableColumn>
+        </template>
+        <template #append>
+          <slot name="append" />
+        </template>
+        <template #empty>
+          <div class="table-empty">
+            <slot name="empty">
+              <img src="@/assets/images/notData.png" alt="notData" />
+              <div>暂无数据</div>
+            </slot>
+          </div>
+        </template>
+      </el-table>
+      <slot name="pagination">
+        <Pagination
+          v-if="pagination"
+          :pageable="pageable"
+          :handle-size-change="handleSizeChange"
+          :handle-current-change="handleCurrentChange"
+        />
+      </slot>
+    </div>
+    <ColSetting v-if="toolButton" ref="colRef" v-model:col-setting="colSetting" />
   </div>
-  <ColSetting v-if="toolButton" ref="colRef" v-model:col-setting="colSetting" />
 </template>
 
 <script setup lang="ts" name="ProTable">
@@ -137,7 +139,7 @@ const props = withDefaults(defineProps<ProTableProps>(), {
   rowKey: "id",
   searchCol: () => ({ xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }),
   virtualized: true,
-  tableHeight: "600px"
+  tableHeight: "100%"
 });
 
 const tableRef = ref<InstanceType<typeof ElTable>>();
@@ -269,3 +271,33 @@ defineExpose({
   enumMap
 });
 </script>
+
+<style scoped lang="scss">
+.pro-table-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+:deep(.table-search) {
+  flex-shrink: 0;
+}
+
+.table-main {
+  display: grid;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.el-table {
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+</style>

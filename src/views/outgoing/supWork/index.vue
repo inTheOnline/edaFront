@@ -46,10 +46,10 @@ import { ref, reactive,onMounted,computed } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
 import { getAll,getModel,addMany,deleteMany,add,edit,deleteById } from "@/api/modules/supWork";
-import { useDownload } from "@/hooks/useDownload";
+import * as XLSX from "xlsx";
 import UserDrawer from "./components/UserDrawer.vue";
 import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import {useDictStore} from '@/stores/modules/dict'
 import { sortUserPlugins } from "vite";
@@ -144,9 +144,36 @@ const deleteSelected = async(ids: number[]): Promise<void> => {
 };
 // 导出供应商报价列表
 const downloadFile = async () => {
-  ElMessageBox.confirm("确认导出用户数据?", "温馨提示", { type: "warning" }).then(() =>
-    useDownload(getModel, "供应商报价列表", proTableRef.value?.searchParam)
-  );
+  try {
+    await ElMessageBox.confirm("确认导出当前筛选条件下的全部供应商工序数据吗？", "导出确认", { type: "warning" });
+  } catch {
+    return;
+  }
+  const loading = ElLoading.service({ text: "正在导出..." });
+  try {
+    const searchParam = { ...(proTableRef.value?.searchParam || {}) };
+    const firstPage = (await getAll({ ...searchParam, pageNum: 1, pageSize: 1 })).data as any;
+    const records = firstPage.total ? ((await getAll({ ...searchParam, pageNum: 1, pageSize: firstPage.total })).data as any).records : [];
+    const worksheet = XLSX.utils.json_to_sheet(
+      records.map(item => ({
+        供应商名称: item.supName || "",
+        工艺名: item.work || "",
+        物料编号: item.materNum || "",
+        物料名称: item.materName || "",
+        报价: item.price
+      })),
+      { header: ["供应商名称", "工艺名", "物料编号", "物料名称", "报价"] }
+    );
+    worksheet["!cols"] = [20, 20, 20, 24, 14].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "供应商工序管理");
+    XLSX.writeFile(workbook, `供应商工序管理_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success(`成功导出 ${records.length} 条数据`);
+  } catch {
+    ElMessage.error("导出失败，请稍后重试");
+  } finally {
+    loading.close();
+  }
 };
 async function deleteOne  (id:number){
   await deleteById(id);

@@ -9,6 +9,15 @@
       :model="drawerProps.row"
       :hide-required-asterisk="drawerProps.isView"
     >
+      <el-form-item label="日期">
+          <el-date-picker
+            v-model="drawerProps.row.date"
+            type="date"
+            placeholder="请选择日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+          />
+      </el-form-item>
       <el-form-item label="产品编号" prop="materId">
         <el-select 
           v-model="drawerProps.row.materId" 
@@ -95,7 +104,31 @@ const rules = reactive({
   number: [{ required: true, message: "请填入数量(pcs)" }],
   remark: [{ required: false, message: "请输入备注" }],
 });
+interface FlowDrawerRow {
+  type?: string;
+  materId?: string | number;
+  flowType?: string;
+  number?: string | number;
+  remark?: string;
+  date?: string;
+  [key: string]: any;
+}
+interface DrawerProps {
+  title: string;
+  isView: boolean;
+  row: FlowDrawerRow;
+  api?: (params: any) => Promise<any>;
+  getTableList?: () => void | Promise<void>;
+  materialList: { value: string | number; label: string; num?: string }[];
+}
 const drawerVisible = ref(false);
+const getTodayDateOnly = () => {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 const drawerProps = ref<DrawerProps>({
   isView: false,
   materialList: [],
@@ -105,19 +138,22 @@ const drawerProps = ref<DrawerProps>({
     materId: "",
     flowType: "",
     number: 0,
+    date: getTodayDateOnly(),
   },
 });
+
 // 接收父组件传过来的参数
 const acceptParams = (params: DrawerProps) => {
-  drawerProps.value.materialList = params.materialList;
-  drawerProps.value = params;
+  const row = { ...params.row };
+  if (params.title === "新增" && !row.date) row.date = getTodayDateOnly();
+  drawerProps.value = { ...params, row };
   drawerVisible.value = true;
 };
 
 // 提交数据（新增/编辑）
 const ruleFormRef = ref<FormInstance>();
 const handleSubmit = () => {
-  drawerProps.value.row.type = getTypeByFlow(drawerProps.value.row.flowType);
+  drawerProps.value.row.type = getTypeByFlow(drawerProps.value.row.flowType || "");
   ruleFormRef.value!.validate(async valid => {
     if (!valid) return;
     try {

@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="选择外发明细" width="980px" :close-on-click-modal="false">
+  <el-dialog v-model="visible" title="选择外发明细" width="1200px" :close-on-click-modal="false">
     <div v-if="lockedSupplierLabel" class="locked-banner">
       <span class="locked-banner__label">已锁定供应商</span>
       <strong>{{ lockedSupplierLabel }}</strong>
@@ -29,7 +29,7 @@
       <el-table-column v-if="multiple" type="selection" width="52" align="center" />
       <el-table-column type="index" label="#" width="60" align="center" />
       <el-table-column prop="subcNum" label="外发单号" min-width="150" />
-      <el-table-column prop="supName" label="供应商" min-width="140" />
+      <el-table-column prop="supName" label="供应商" align="center" min-width="80" />
       <el-table-column prop="materNum" label="物料编码" min-width="120" />
       <el-table-column prop="materName" label="物料名称" min-width="160" />
       <el-table-column prop="number" label="外发数量" width="110" />

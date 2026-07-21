@@ -2,11 +2,15 @@
   <div class="qr-layout" tabindex="0" @keydown="handleKeydown" @keyup="handleKeyup">
     <header class="qr-layout__toolbar">
       <div class="toolbar-group">
-        <el-button type="primary" @click="resetTemplate"><el-icon><DocumentAdd /></el-icon>新建</el-button>
-        <el-select v-model="exampleName" class="example-select" @change="useExample">
-          <el-option v-for="item in templateExamples" :key="item.name" :label="item.name" :value="item.name" />
+        <el-button type="primary" @click="openCreateTemplateDialog('blank')"><el-icon><DocumentAdd /></el-icon>新建</el-button>
+        <el-select v-model="activeTemplateKey" class="example-select" @change="handleTemplateSelect">
+          <el-option v-for="item in templateOptions" :key="item.key" :label="item.template.name" :value="item.key" />
+          <el-option label="新增模板" :value="newTemplateSelectValue" />
         </el-select>
         <el-button @click="paperVisible = true"><el-icon><Setting /></el-icon>纸张</el-button>
+        <el-button type="primary" plain @click="saveCurrentTemplate"><el-icon><Download /></el-icon>{{ activeTemplateOption?.source === "server" && activeTemplateOption.editable ? "保存" : "保存到后端" }}</el-button>
+        <el-button v-if="activeTemplateOption?.source === 'server' && activeTemplateOption.record?.visibility === 'private' && activeTemplateOption.editable" type="success" plain @click="publishCurrentTemplate">公开</el-button>
+        <el-button v-if="activeTemplateOption?.source === 'server' && activeTemplateOption.record?.visibility === 'public' && activeTemplateOption.editable" type="warning" plain @click="unpublishCurrentTemplate">取消公开</el-button>
         <el-button @click="triggerImport"><el-icon><Upload /></el-icon>导入</el-button>
         <el-button @click="exportTemplate"><el-icon><Download /></el-icon>导出</el-button>
         <input ref="templateInputRef" class="hidden-input" type="file" accept=".json,application/json" @change="importTemplate" />
@@ -50,9 +54,33 @@
         <section class="panel">
           <div class="panel-title">模板库</div>
           <div class="template-list">
-            <button v-for="item in templateExamples" :key="item.name" class="template-card" @click="useExample(item.name)">
-              <strong>{{ item.name }}</strong>
-              <span>{{ item.paper.width }} x {{ item.paper.height }}mm</span>
+            <div
+              v-for="item in templateOptions"
+              :key="item.key"
+              class="template-card"
+              :class="{ active: activeTemplateKey === item.key }"
+              @click="useTemplate(item.key)"
+            >
+              <div class="template-card__main">
+                <strong>{{ item.template.name }}</strong>
+                <span class="template-card__meta">{{ item.template.paper.width }} x {{ item.template.paper.height }}mm</span>
+                <div class="template-card__tags">
+                  <span class="template-card__tag" :class="`is-${item.source === 'server' ? item.record?.visibility : item.source}`">{{ templateOptionTag(item) }}</span>
+                  <span v-if="item.record?.ownerUserName" class="template-card__owner">{{ item.record.ownerUserName }}</span>
+                </div>
+              </div>
+              <div class="template-card__actions">
+                <el-button link type="primary" @click.stop="copyTemplate(item)">复制</el-button>
+                <el-button v-if="item.source !== 'server'" link type="success" @click.stop="saveTemplateToServer(item)">入库</el-button>
+                <template v-if="!item.builtin && item.editable">
+                  <el-button link type="primary" @click.stop="renameTemplate(item)">重命名</el-button>
+                  <el-button link type="danger" @click.stop="removeTemplate(item)">删除</el-button>
+                </template>
+              </div>
+            </div>
+            <button class="template-add-card" @click="openCreateTemplateDialog('blank')">
+              <el-icon><Plus /></el-icon>
+              <span>新增模板</span>
             </button>
           </div>
         </section>
@@ -252,6 +280,78 @@
       </aside>
     </main>
 
+    <el-dialog v-model="templateDialogVisible" title="新增模板" width="920px" class="template-create-dialog">
+      <div class="template-create">
+        <el-form label-width="92px" size="small" class="template-create__form">
+          <el-form-item label="创建方式">
+            <el-segmented v-model="templateDraft.source" :options="templateSourceOptions" @change="syncTemplateDraftFromSource" />
+          </el-form-item>
+          <el-form-item v-if="templateDraft.source === 'example'" label="示例模板">
+            <el-select v-model="templateDraft.exampleName" @change="syncTemplateDraftFromSource">
+              <el-option v-for="item in templateOptions" :key="item.template.name" :label="item.template.name" :value="item.template.name" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="模板名">
+            <el-input v-model="templateDraft.name" maxlength="40" show-word-limit />
+          </el-form-item>
+          <el-form-item label="规格">
+            <el-select v-model="templateDraft.paperName" @change="changeTemplateDraftPaper">
+              <el-option v-for="item in paperPresets" :key="item.name" :label="item.name" :value="item.name" />
+              <el-option label="自定义" value="自定义" />
+            </el-select>
+          </el-form-item>
+          <div class="dialog-grid">
+            <el-form-item label="宽mm"><el-input-number v-model="templateDraft.width" :min="5" :max="300" /></el-form-item>
+            <el-form-item label="高mm"><el-input-number v-model="templateDraft.height" :min="5" :max="300" /></el-form-item>
+            <el-form-item label="边距X"><el-input-number v-model="templateDraft.marginX" :min="0" :max="50" :step="0.5" /></el-form-item>
+            <el-form-item label="边距Y"><el-input-number v-model="templateDraft.marginY" :min="0" :max="50" :step="0.5" /></el-form-item>
+            <el-form-item label="间隙"><el-input-number v-model="templateDraft.gap" :min="0" :max="20" :step="0.5" /></el-form-item>
+            <el-form-item label="圆角"><el-input-number v-model="templateDraft.borderRadius" :min="0" :max="50" :step="0.5" /></el-form-item>
+            <el-form-item label="浓度"><el-input-number v-model="templateDraft.density" :min="0" :max="15" /></el-form-item>
+            <el-form-item label="速度"><el-input-number v-model="templateDraft.speed" :min="1" :max="8" /></el-form-item>
+            <el-form-item label="偏移X"><el-input-number v-model="templateDraft.offsetX" :min="-30" :max="30" :step="0.5" /></el-form-item>
+            <el-form-item label="偏移Y"><el-input-number v-model="templateDraft.offsetY" :min="-30" :max="30" :step="0.5" /></el-form-item>
+          </div>
+          <div class="dialog-grid">
+            <el-form-item label="方向">
+              <el-segmented v-model="templateDraft.direction" :options="directionOptions" />
+            </el-form-item>
+            <el-form-item label="模式">
+              <el-select v-model="templateDraft.mode">
+                <el-option label="间隙纸" value="gap" />
+                <el-option label="黑标纸" value="blackMark" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="边框">
+              <el-switch v-model="templateDraft.borderVisible" />
+            </el-form-item>
+            <el-form-item label="边框线宽">
+              <el-input-number v-model="templateDraft.borderWidth" :disabled="!templateDraft.borderVisible" :min="0.1" :max="5" :step="0.1" />
+            </el-form-item>
+          </div>
+        </el-form>
+        <div class="template-preview-panel">
+          <div class="template-preview-title">实时预览</div>
+          <div class="template-preview-wrap">
+            <div class="template-preview-paper" :style="templatePreviewStyle">
+              <div class="template-preview-margin" :style="templatePreviewMarginStyle"></div>
+              <span class="template-preview-size template-preview-size--top">{{ templateDraft.width }}mm</span>
+              <span class="template-preview-size template-preview-size--left">{{ templateDraft.height }}mm</span>
+            </div>
+          </div>
+          <div class="template-preview-meta">
+            <span>{{ templateDraft.width }} x {{ templateDraft.height }}mm</span>
+            <span>边距 {{ templateDraft.marginX }} / {{ templateDraft.marginY }}mm</span>
+            <span>{{ templateDraft.borderRadius ? `圆角 ${templateDraft.borderRadius}mm` : "直角" }}</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="templateDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveTemplateDraft">创建</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="paperVisible" title="纸张设置" width="560px">
       <el-form label-width="86px" size="small">
         <el-form-item label="模板名"><el-input v-model="template.name" /></el-form-item>
@@ -271,28 +371,28 @@
           <el-form-item label="速度"><el-input-number v-model="template.paper.speed" :min="1" :max="8" /></el-form-item>
           <el-form-item label="偏移X"><el-input-number v-model="template.paper.offsetX" :min="-30" :max="30" :step="0.5" /></el-form-item>
           <el-form-item label="偏移Y"><el-input-number v-model="template.paper.offsetY" :min="-30" :max="30" :step="0.5" /></el-form-item>
+          <el-form-item label="圆角"><el-input-number v-model="template.paper.borderRadius" :min="0" :max="50" :step="0.5" /></el-form-item>
+          <el-form-item label="边框"><el-switch v-model="template.paper.borderVisible" /></el-form-item>
+          <el-form-item label="边框线宽"><el-input-number v-model="template.paper.borderWidth" :disabled="!template.paper.borderVisible" :min="0.1" :max="5" :step="0.1" /></el-form-item>
         </div>
       </el-form>
     </el-dialog>
 
     <el-dialog v-model="printVisible" :title="testPrint ? '测试打印' : '批量打印'" width="760px">
-      <div class="print-summary">预计输出 {{ printPages.length }} 张</div>
+      <div class="print-summary">预计输出 {{ currentPrintPages.length }} 张</div>
+      <div class="print-quantity-row">
+        <span>打印数量</span>
+        <el-input-number v-model="printQuantity" size="small" :min="1" :max="99999" controls-position="right" />
+      </div>
       <div class="print-data-list">
         <div v-for="entry in printableSources" :key="entry.key" class="print-source-row">
           <span>{{ entry.element.name }} / {{ entry.source.name }}</span>
-          <template v-if="entry.source.sourceType === 'serial'">
-            <el-input v-model="entry.source.serial.start" size="small" placeholder="起始" />
-            <el-input v-model="entry.source.serial.end" size="small" placeholder="截止" />
-            <el-input-number v-model="entry.source.serial.repeat" size="small" :min="1" />
-            <el-input-number v-model="entry.source.serial.step" size="small" :min="1" />
-          </template>
-          <template v-else>
-            <el-input v-model="entry.source.manualValue" size="small" />
-          </template>
+          <el-input v-model="entry.source.manualValue" size="small" />
         </div>
       </div>
       <template #footer>
         <el-button @click="printVisible = false">取消</el-button>
+        <el-button type="primary" plain @click="openPdfPreview(testPrint)">生成PDF</el-button>
         <el-button @click="openPrintPreview(testPrint)">浏览器预览</el-button>
         <el-button type="warning" @click="directPrint(testPrint)">直连打印</el-button>
       </template>
@@ -336,10 +436,13 @@
         <template v-if="sourceDraft.sourceType === 'serial'">
           <div class="dialog-grid">
             <el-form-item label="起始编号"><el-input v-model="sourceDraft.serial.start" /></el-form-item>
-            <el-form-item label="截止编号"><el-input v-model="sourceDraft.serial.end" /></el-form-item>
-            <el-form-item label="位数"><el-input-number v-model="sourceDraft.serial.digits" controls-position="right" :min="1" :max="12" /></el-form-item>
-            <el-form-item label="重复次数"><el-input-number v-model="sourceDraft.serial.repeat" controls-position="right" :min="1" :max="999" /></el-form-item>
-            <el-form-item label="步长"><el-input-number v-model="sourceDraft.serial.step" controls-position="right" :min="1" :max="999" /></el-form-item>
+            <el-form-item label="方向">
+              <el-select v-model="sourceDraft.serial.direction">
+                <el-option label="递增" value="increment" />
+                <el-option label="递减" value="decrement" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="公差"><el-input-number v-model="sourceDraft.serial.step" controls-position="right" :min="1" :max="999" /></el-form-item>
           </div>
         </template>
         <el-form-item v-if="sourceDraft.sourceType === 'compose'" label="拼接表达式">
@@ -384,8 +487,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import Moveable from "vue3-moveable";
 import { createForm } from "@formily/core";
-import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import printJS from "print-js";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   CopyDocument,
@@ -397,6 +500,7 @@ import {
   Grid,
   Minus,
   Picture,
+  Plus,
   Printer,
   RefreshLeft,
   RefreshRight,
@@ -404,8 +508,19 @@ import {
   Tickets,
   Upload
 } from "@element-plus/icons-vue";
+import {
+  copyQrLayoutTemplate,
+  createQrLayoutTemplate,
+  deleteQrLayoutTemplate,
+  getQrLayoutTemplateDetail,
+  getQrLayoutTemplateList,
+  publishQrLayoutTemplate,
+  unpublishQrLayoutTemplate,
+  updateQrLayoutTemplate
+} from "@/api/modules/qrLayout";
+import type { QrLayoutTemplateRecord } from "@/api/interface/qrLayout";
 import { createDefaultTemplate, templateExamples } from "./templates";
-import type { QrLayoutDataTransform, QrLayoutElement, QrLayoutElementType, QrLayoutObjectDataSource, QrLayoutSourceType, QrLayoutTemplate, QrLayoutValueType } from "./types";
+import type { QrLayoutDataTransform, QrLayoutElement, QrLayoutElementType, QrLayoutObjectDataSource, QrLayoutPaper, QrLayoutSourceType, QrLayoutTemplate, QrLayoutValueType } from "./types";
 import {
   buildCode128Bars,
   buildPrintPages,
@@ -415,6 +530,7 @@ import {
   downloadText,
   fontOptions,
   generateBatchTspl,
+  normalizeSerialRule,
   paperPresets,
   readFileAsDataUrl,
   readFileAsText,
@@ -425,6 +541,42 @@ import {
 
 const template = ref<QrLayoutTemplate>(createDefaultTemplate());
 const localTemplateKey = "eda-erp-qr-layout-template";
+const customTemplateKey = "eda-erp-qr-layout-template-list";
+const savedTemplateKey = "eda-erp-qr-layout-saved-template-map";
+const newTemplateSelectValue = "__create_template__";
+type TemplateSource = "blank" | "current" | "example";
+type TemplateOptionSource = "builtin" | "local" | "server";
+interface TemplateDraft {
+  name: string;
+  source: TemplateSource;
+  exampleName: string;
+  paperName: string;
+  width: number;
+  height: number;
+  marginX: number;
+  marginY: number;
+  gap: number;
+  direction: 0 | 1;
+  density: number;
+  speed: number;
+  offsetX: number;
+  offsetY: number;
+  mode: QrLayoutPaper["mode"];
+  borderRadius: number;
+  borderVisible: boolean;
+  borderWidth: number;
+}
+interface ServerTemplateItem extends QrLayoutTemplateRecord {
+  template: QrLayoutTemplate;
+}
+interface TemplateLibraryOption {
+  key: string;
+  template: QrLayoutTemplate;
+  source: TemplateOptionSource;
+  builtin: boolean;
+  editable: boolean;
+  record?: ServerTemplateItem;
+}
 const selectedId = ref("");
 const editingId = ref("");
 const zoomPercent = ref(100);
@@ -434,11 +586,41 @@ const shiftPressed = ref(false);
 const paperVisible = ref(false);
 const printVisible = ref(false);
 const testPrint = ref(false);
+const printQuantity = ref(1);
 const tsplVisible = ref(false);
 const sourceDialogVisible = ref(false);
 const transformDialogVisible = ref(false);
+const templateDialogVisible = ref(false);
 const tsplText = ref("");
 const exampleName = ref(templateExamples[0].name);
+const activeTemplateName = ref(templateExamples[0].name);
+const activeTemplateKey = ref(`builtin:${templateExamples[0].name}`);
+const customTemplates = ref<QrLayoutTemplate[]>([]);
+const savedTemplates = ref<Record<string, QrLayoutTemplate>>({});
+const workingTemplates = ref<Record<string, QrLayoutTemplate>>({});
+const serverTemplates = ref<ServerTemplateItem[]>([]);
+const localCurrentTemplate = ref<QrLayoutTemplate | null>(null);
+const defaultDraftPaper = paperPresets[2];
+const templateDraft = reactive<TemplateDraft>({
+  name: "新模板",
+  source: "blank",
+  exampleName: templateExamples[0].name,
+  paperName: defaultDraftPaper.name,
+  width: defaultDraftPaper.width,
+  height: defaultDraftPaper.height,
+  marginX: defaultDraftPaper.marginX,
+  marginY: defaultDraftPaper.marginY,
+  gap: defaultDraftPaper.gap,
+  direction: defaultDraftPaper.direction,
+  density: defaultDraftPaper.density,
+  speed: defaultDraftPaper.speed,
+  offsetX: defaultDraftPaper.offsetX,
+  offsetY: defaultDraftPaper.offsetY,
+  mode: defaultDraftPaper.mode,
+  borderRadius: 0,
+  borderVisible: false,
+  borderWidth: 0.3
+});
 const templateInputRef = ref<HTMLInputElement>();
 const imageInputRef = ref<HTMLInputElement>();
 const canvasRef = ref<HTMLDivElement>();
@@ -455,6 +637,7 @@ const sourceDraft = reactive<QrLayoutObjectDataSource>(createObjectDataSource("�
 const transformDraft = reactive<QrLayoutDataTransform>({ prefix: "", suffix: "" });
 let persistTimer: number | undefined;
 let printBlobUrl = "";
+let printing = false;
 const alignOptions = [
   { label: "左", value: "left" },
   { label: "中", value: "center" },
@@ -478,28 +661,148 @@ const numberSourceOptions = [
   { label: "流水号", value: "serial" },
   { label: "公式", value: "formula" }
 ];
+const templateSourceOptions = [
+  { label: "空白", value: "blank" },
+  { label: "复制当前", value: "current" },
+  { label: "基于示例", value: "example" }
+];
+const directionOptions = [
+  { label: "正向", value: 0 },
+  { label: "旋转", value: 1 }
+];
 
+const cssPxPerMm = 96 / 25.4;
+const pdfTextScale = 6;
 const zoom = computed(() => zoomPercent.value / 12.5);
+const previewFontScale = computed(() => zoom.value / cssPxPerMm);
 const selectedElement = computed(() => template.value.elements.find(item => item.id === selectedId.value));
 const sortedElements = computed(() => [...template.value.elements].sort((a, b) => a.zIndex - b.zIndex));
 const layerElements = computed(() => [...template.value.elements].sort((a, b) => b.zIndex - a.zIndex));
-const printPages = computed(() => buildPrintPages(template.value));
+const currentPrintPages = computed(() => buildPrintPages(template.value, testPrint.value ? 1 : printQuantity.value));
 const printableSources = computed(() =>
   template.value.elements.flatMap(element =>
     element.dataSources
-      .filter(source => source.sourceType === "manual" || source.sourceType === "serial")
+      .filter(source => source.sourceType === "manual")
       .map(source => ({ key: `${element.id}_${source.id}`, element, source }))
   )
 );
 const keepRatio = computed(() => shiftPressed.value || selectedElement.value?.type === "qr" || selectedElement.value?.type === "image");
 const sourceTypeOptions = computed(() => (sourceDraft.valueType === "number" ? numberSourceOptions : textSourceOptions));
+const templateOptions = computed<TemplateLibraryOption[]>(() => [
+  ...serverTemplates.value.map(item => ({
+    key: `server:${item.id}`,
+    template: normalizeTemplate(item.template),
+    source: "server" as const,
+    builtin: false,
+    editable: item.editable,
+    record: item
+  })),
+  ...(localCurrentTemplate.value
+    ? [
+        {
+          key: "local:current",
+          template: normalizeTemplate(localCurrentTemplate.value),
+          source: "local" as const,
+          builtin: false,
+          editable: true
+        }
+      ]
+    : []),
+  ...templateExamples.map(item => {
+    const saved = savedTemplates.value[item.name];
+    const working = workingTemplates.value[item.name];
+    return {
+      key: `builtin:${item.name}`,
+      template: normalizeTemplate(working || saved || item),
+      source: "builtin" as const,
+      builtin: true,
+      editable: true
+    };
+  }),
+  ...customTemplates.value.map(item => {
+    const working = workingTemplates.value[item.name];
+    return {
+      key: `local:${item.name}`,
+      template: normalizeTemplate(working || item),
+      source: "local" as const,
+      builtin: false,
+      editable: true
+    };
+  })
+]);
+const activeTemplateOption = computed(() => templateOptions.value.find(item => item.key === activeTemplateKey.value));
 const canvasStyle = computed(() => ({
   width: `${template.value.paper.width * zoom.value}px`,
   height: `${template.value.paper.height * zoom.value}px`,
-  backgroundSize: `${gridSize.value * zoom.value}px ${gridSize.value * zoom.value}px`
+  backgroundSize: `${gridSize.value * zoom.value}px ${gridSize.value * zoom.value}px`,
+  borderRadius: `${templateBorderRadius(template.value.paper) * zoom.value}px`,
+  border: template.value.paper.borderVisible ? `${Math.max(templateBorderWidth(template.value.paper) * zoom.value, 1)}px solid #111827` : "1px solid #111827"
 }));
 const moveableGuidelines = computed(() => sortedElements.value.map(item => document.getElementById(item.id)).filter(Boolean) as HTMLElement[]);
 const moveableBounds = computed(() => ({ left: 0, top: 0, right: template.value.paper.width * zoom.value, bottom: template.value.paper.height * zoom.value }));
+const templatePreviewScale = computed(() => Math.min(280 / Math.max(templateDraft.width, 1), 190 / Math.max(templateDraft.height, 1)));
+const templatePreviewStyle = computed(() => ({
+  width: `${templateDraft.width * templatePreviewScale.value}px`,
+  height: `${templateDraft.height * templatePreviewScale.value}px`,
+  borderRadius: `${templateDraft.borderRadius * templatePreviewScale.value}px`,
+  border: templateDraft.borderVisible ? `${Math.max(templateDraft.borderWidth * templatePreviewScale.value, 1)}px solid #111827` : "1px dashed #98a2b3"
+}));
+const templatePreviewMarginStyle = computed(() => ({
+  left: `${templateDraft.marginX * templatePreviewScale.value}px`,
+  right: `${templateDraft.marginX * templatePreviewScale.value}px`,
+  top: `${templateDraft.marginY * templatePreviewScale.value}px`,
+  bottom: `${templateDraft.marginY * templatePreviewScale.value}px`,
+  borderRadius: `${Math.max((templateDraft.borderRadius - Math.max(templateDraft.marginX, templateDraft.marginY)) * templatePreviewScale.value, 0)}px`
+}));
+
+const templateBorderRadius = (paper: QrLayoutPaper) => paper.borderRadius ?? 0;
+const templateBorderWidth = (paper: QrLayoutPaper) => paper.borderWidth ?? 0.3;
+const templateBorderVisible = (paper: QrLayoutPaper) => paper.borderVisible ?? false;
+const normalizePaper = (paper: QrLayoutPaper): QrLayoutPaper => ({
+  ...paper,
+  borderRadius: templateBorderRadius(paper),
+  borderVisible: templateBorderVisible(paper),
+  borderWidth: templateBorderWidth(paper)
+});
+const normalizeElement = (item: QrLayoutElement): QrLayoutElement => ({
+  ...item,
+  dataSources: item.dataSources.map(source => ({
+    ...source,
+    serial: normalizeSerialRule(source.serial),
+    transform: source.transform || { prefix: "", suffix: "" }
+  }))
+});
+const normalizeTemplate = (item: QrLayoutTemplate): QrLayoutTemplate => ({
+  ...item,
+  paper: normalizePaper(item.paper),
+  elements: item.elements.map(normalizeElement)
+});
+const cloneTemplate = (item: QrLayoutTemplate): QrLayoutTemplate => normalizeTemplate(JSON.parse(JSON.stringify(item)));
+const templateJson = (item: QrLayoutTemplate) => JSON.stringify(normalizeTemplate(item));
+const templateOptionTag = (item: TemplateLibraryOption) => {
+  if (item.source === "builtin") return "内置";
+  if (item.source === "local") return "本地";
+  if (item.source !== "server") return "本地";
+  return item.record?.visibility === "public" ? "公开" : "我的";
+};
+const parseServerTemplate = (record: QrLayoutTemplateRecord): ServerTemplateItem | null => {
+  if (!record.templateJson) return null;
+  try {
+    const parsed = normalizeTemplate(JSON.parse(record.templateJson));
+    parsed.name = record.name || parsed.name;
+    return { ...record, template: parsed };
+  } catch {
+    return null;
+  }
+};
+const uniqueTemplateName = (name: string) => {
+  const baseName = name.trim() || "新模板";
+  const names = new Set(templateOptions.value.map(item => item.template.name));
+  if (!names.has(baseName)) return baseName;
+  let index = 2;
+  while (names.has(`${baseName}${index}`)) index++;
+  return `${baseName}${index}`;
+};
 
 const snapshot = () => {
   historyStack.value.push(JSON.stringify(template.value));
@@ -510,17 +813,73 @@ const snapshot = () => {
 const persistTemplate = () => {
   window.clearTimeout(persistTimer);
   persistTimer = window.setTimeout(() => {
-    localStorage.setItem(localTemplateKey, JSON.stringify(template.value));
+    localStorage.setItem(localTemplateKey, JSON.stringify(normalizeTemplate(template.value)));
   }, 300);
+};
+
+const persistCustomTemplates = () => {
+  localStorage.setItem(customTemplateKey, JSON.stringify(customTemplates.value.map(normalizeTemplate)));
+};
+
+const persistSavedTemplates = () => {
+  localStorage.setItem(
+    savedTemplateKey,
+    JSON.stringify(Object.fromEntries(Object.entries(savedTemplates.value).map(([name, item]) => [name, normalizeTemplate(item)])))
+  );
+};
+
+const stashActiveTemplate = () => {
+  const option = activeTemplateOption.value;
+  if (!option || !activeTemplateName.value) return;
+  const activeTemplate = cloneTemplate(template.value);
+  activeTemplate.name = activeTemplateName.value;
+  if (option.source === "server" && option.record?.id) {
+    serverTemplates.value = serverTemplates.value.map(item => (item.id === option.record?.id ? { ...item, template: activeTemplate } : item));
+    return;
+  }
+  if (option.key === "local:current") {
+    localCurrentTemplate.value = activeTemplate;
+    return;
+  }
+  workingTemplates.value = {
+    ...workingTemplates.value,
+    [option.template.name]: activeTemplate
+  };
+};
+
+const loadCustomTemplates = () => {
+  const saved = localStorage.getItem(customTemplateKey);
+  if (!saved) return;
+  try {
+    customTemplates.value = JSON.parse(saved).map(normalizeTemplate);
+  } catch {
+    localStorage.removeItem(customTemplateKey);
+  }
+};
+
+const loadSavedTemplates = () => {
+  const saved = localStorage.getItem(savedTemplateKey);
+  if (!saved) return;
+  try {
+    savedTemplates.value = Object.fromEntries(
+      Object.entries(JSON.parse(saved)).map(([name, item]) => [name, normalizeTemplate(item as QrLayoutTemplate)])
+    );
+  } catch {
+    localStorage.removeItem(savedTemplateKey);
+  }
 };
 
 const loadLocalTemplate = () => {
   const saved = localStorage.getItem(localTemplateKey);
   if (!saved) return false;
   try {
-    template.value = JSON.parse(saved);
+    const localTemplate = normalizeTemplate(JSON.parse(saved));
+    localCurrentTemplate.value = cloneTemplate(localTemplate);
+    template.value = localTemplate;
     selectedId.value = "";
-    exampleName.value = template.value.name;
+    exampleName.value = "local:current";
+    activeTemplateKey.value = "local:current";
+    activeTemplateName.value = template.value.name;
     return true;
   } catch {
     localStorage.removeItem(localTemplateKey);
@@ -543,20 +902,295 @@ const redo = () => {
   refreshTarget();
 };
 
-const resetTemplate = async () => {
-  await ElMessageBox.confirm("确认新建模板？当前未导出的修改会丢失。", "提示", { type: "warning" });
-  template.value = createDefaultTemplate();
+const useTemplate = (key: string) => {
+  if (activeTemplateKey.value === key) {
+    exampleName.value = key;
+    return;
+  }
+  stashActiveTemplate();
+  const found = templateOptions.value.find(item => item.key === key);
+  if (!found) return;
+  template.value = cloneTemplate(found.template);
   selectedId.value = "";
-  exampleName.value = templateExamples[0].name;
+  exampleName.value = key;
+  activeTemplateKey.value = key;
+  activeTemplateName.value = template.value.name;
   snapshot();
 };
 
-const useExample = (name: string) => {
-  const found = templateExamples.find(item => item.name === name);
+const handleTemplateSelect = (key: string) => {
+  if (key === newTemplateSelectValue) {
+    activeTemplateKey.value = templateOptions.value.find(item => item.template.name === activeTemplateName.value)?.key || templateOptions.value[0]?.key || `builtin:${templateExamples[0].name}`;
+    openCreateTemplateDialog("blank");
+    return;
+  }
+  useTemplate(key);
+};
+
+const changeTemplateDraftPaper = (name: string) => {
+  const found = paperPresets.find(item => item.name === name);
   if (!found) return;
-  template.value = JSON.parse(JSON.stringify(found));
+  Object.assign(templateDraft, {
+    paperName: found.name,
+    width: found.width,
+    height: found.height,
+    marginX: found.marginX,
+    marginY: found.marginY,
+    gap: found.gap,
+    direction: found.direction,
+    density: found.density,
+    speed: found.speed,
+    offsetX: found.offsetX,
+    offsetY: found.offsetY,
+    mode: found.mode
+  });
+};
+
+const applyPaperToDraft = (paper: QrLayoutPaper) => {
+  const normalized = normalizePaper(paper);
+  Object.assign(templateDraft, {
+    paperName: normalized.name,
+    width: normalized.width,
+    height: normalized.height,
+    marginX: normalized.marginX,
+    marginY: normalized.marginY,
+    gap: normalized.gap,
+    direction: normalized.direction,
+    density: normalized.density,
+    speed: normalized.speed,
+    offsetX: normalized.offsetX,
+    offsetY: normalized.offsetY,
+    mode: normalized.mode,
+    borderRadius: normalized.borderRadius,
+    borderVisible: normalized.borderVisible,
+    borderWidth: normalized.borderWidth
+  });
+};
+
+const syncTemplateDraftFromSource = () => {
+  if (templateDraft.source === "current") {
+    applyPaperToDraft(template.value.paper);
+    return;
+  }
+  if (templateDraft.source === "example") {
+    const found = templateOptions.value.find(item => item.template.name === templateDraft.exampleName);
+    if (found) applyPaperToDraft(found.template.paper);
+    return;
+  }
+  changeTemplateDraftPaper(templateDraft.paperName);
+};
+
+const openCreateTemplateDialog = (source: TemplateSource, baseTemplate?: QrLayoutTemplate) => {
+  const base = baseTemplate || (source === "current" ? template.value : templateExamples[0]);
+  templateDraft.source = source;
+  templateDraft.exampleName = base.name;
+  templateDraft.name = uniqueTemplateName(source === "blank" ? "新模板" : `${base.name}副本`);
+  if (source === "blank") {
+    changeTemplateDraftPaper(defaultDraftPaper.name);
+  } else {
+    applyPaperToDraft(base.paper);
+  }
+  templateDialogVisible.value = true;
+};
+
+const buildDraftPaper = (): QrLayoutPaper => ({
+  name: templateDraft.paperName === "自定义" ? `${templateDraft.width} x ${templateDraft.height}` : templateDraft.paperName,
+  width: templateDraft.width,
+  height: templateDraft.height,
+  marginX: templateDraft.marginX,
+  marginY: templateDraft.marginY,
+  gap: templateDraft.gap,
+  direction: templateDraft.direction,
+  density: templateDraft.density,
+  speed: templateDraft.speed,
+  offsetX: templateDraft.offsetX,
+  offsetY: templateDraft.offsetY,
+  mode: templateDraft.mode,
+  borderRadius: templateDraft.borderRadius,
+  borderVisible: templateDraft.borderVisible,
+  borderWidth: templateDraft.borderWidth
+});
+
+const saveTemplateDraft = () => {
+  if (!templateDraft.name.trim()) {
+    ElMessage.warning("请输入模板名");
+    return;
+  }
+  const sourceTemplate =
+    templateDraft.source === "current"
+      ? template.value
+      : templateDraft.source === "example"
+        ? templateOptions.value.find(item => item.template.name === templateDraft.exampleName)?.template || createDefaultTemplate()
+        : createDefaultTemplate();
+  const nextTemplate = cloneTemplate(sourceTemplate);
+  nextTemplate.name = uniqueTemplateName(templateDraft.name);
+  nextTemplate.paper = buildDraftPaper();
+  if (templateDraft.source === "blank") nextTemplate.elements = [];
+  customTemplates.value.push(nextTemplate);
+  persistCustomTemplates();
+  templateDialogVisible.value = false;
+  useTemplate(`local:${nextTemplate.name}`);
+  ElMessage.success("模板已新增");
+};
+
+const selectServerTemplate = (id?: number) => {
+  const found = id ? serverTemplates.value.find(item => item.id === id) : serverTemplates.value[0];
+  if (!found) return;
+  template.value = cloneTemplate(found.template);
   selectedId.value = "";
+  activeTemplateKey.value = `server:${found.id}`;
+  exampleName.value = activeTemplateKey.value;
+  activeTemplateName.value = found.template.name;
   snapshot();
+};
+
+const saveTemplateToServer = async (option?: TemplateLibraryOption) => {
+  const target = option || activeTemplateOption.value;
+  const sourceTemplate = target?.key === activeTemplateKey.value ? template.value : target?.template || template.value;
+  const nextTemplate = cloneTemplate(sourceTemplate);
+  nextTemplate.name = sourceTemplate.name || activeTemplateName.value || "新模板";
+  const response = await createQrLayoutTemplate({
+    name: nextTemplate.name,
+    templateJson: templateJson(nextTemplate),
+    visibility: "private"
+  });
+  await loadServerTemplates();
+  if (target?.key === "local:current") localCurrentTemplate.value = null;
+  selectServerTemplate(response.data?.id);
+  ElMessage.success("模板已保存到后端");
+};
+
+const saveCurrentTemplate = async () => {
+  const option = activeTemplateOption.value;
+  const activeName = activeTemplateName.value || template.value.name || "新模板";
+  const nextTemplate = cloneTemplate({ ...template.value, name: activeName });
+  if (option?.source === "server" && option.record?.id && option.editable) {
+    await updateQrLayoutTemplate(option.record.id, {
+      name: activeName,
+      templateJson: templateJson(nextTemplate)
+    });
+    await loadServerTemplates();
+    selectServerTemplate(option.record.id);
+    ElMessage.success("模板已保存");
+    return;
+  }
+  await saveTemplateToServer(option);
+};
+
+const publishCurrentTemplate = async () => {
+  const option = activeTemplateOption.value;
+  if (option?.source !== "server" || !option.record?.id || !option.editable) return;
+  await publishQrLayoutTemplate(option.record.id);
+  await loadServerTemplates();
+  selectServerTemplate(option.record.id);
+  ElMessage.success("模板已公开");
+};
+
+const unpublishCurrentTemplate = async () => {
+  const option = activeTemplateOption.value;
+  if (option?.source !== "server" || !option.record?.id || !option.editable) return;
+  await unpublishQrLayoutTemplate(option.record.id);
+  await loadServerTemplates();
+  selectServerTemplate(option.record.id);
+  ElMessage.success("已取消公开");
+};
+
+const copyTemplate = async (item: TemplateLibraryOption) => {
+  if (item.source !== "server" || !item.record?.id) {
+    openCreateTemplateDialog("example", item.template);
+    return;
+  }
+  const name = uniqueTemplateName(`${item.template.name}_副本`);
+  const response = await copyQrLayoutTemplate(item.record.id, { name });
+  await loadServerTemplates();
+  selectServerTemplate(response.data?.id);
+  ElMessage.success("模板已复制");
+};
+
+const renameTemplate = async (item: TemplateLibraryOption) => {
+  try {
+    const result = await ElMessageBox.prompt("请输入新的模板名", "重命名模板", {
+      inputValue: item.template.name,
+      inputPattern: /\S+/,
+      inputErrorMessage: "模板名不能为空"
+    });
+    if (result.value.trim() === item.template.name) return;
+    const newName = uniqueTemplateName(result.value);
+    const nextTemplate = cloneTemplate(item.key === activeTemplateKey.value ? template.value : item.template);
+    nextTemplate.name = newName;
+    if (item.source === "server" && item.record?.id) {
+      await updateQrLayoutTemplate(item.record.id, {
+        name: newName,
+        templateJson: templateJson(nextTemplate)
+      });
+      await loadServerTemplates();
+      selectServerTemplate(item.record.id);
+      return;
+    }
+    if (item.key === "local:current") {
+      localCurrentTemplate.value = nextTemplate;
+    } else {
+      const target = customTemplates.value.find(templateItem => templateItem.name === item.template.name);
+      if (!target) return;
+      target.name = newName;
+      persistCustomTemplates();
+    }
+    if (item.key === activeTemplateKey.value) {
+      template.value.name = newName;
+      activeTemplateKey.value = item.key === "local:current" ? item.key : `local:${newName}`;
+      exampleName.value = activeTemplateKey.value;
+      activeTemplateName.value = newName;
+    }
+  } catch {
+    // 用户取消重命名时不提示。
+  }
+};
+
+const loadServerTemplates = async () => {
+  const response = await getQrLayoutTemplateList({ scope: "all", pageNum: 1, pageSize: 200 });
+  const records = response.data?.records || [];
+  const details = await Promise.all(
+    records.map(async record => {
+      if (record.templateJson) return record;
+      try {
+        return (await getQrLayoutTemplateDetail(record.id)).data;
+      } catch {
+        return null;
+      }
+    })
+  );
+  serverTemplates.value = details
+    .filter((item): item is QrLayoutTemplateRecord => Boolean(item))
+    .map(parseServerTemplate)
+    .filter((item): item is ServerTemplateItem => Boolean(item));
+};
+
+const createFirstServerTemplateFromLocal = async () => {
+  if (serverTemplates.value.length || !localCurrentTemplate.value) return;
+  const firstTemplate = cloneTemplate(localCurrentTemplate.value);
+  const response = await createQrLayoutTemplate({
+    name: firstTemplate.name || "新模板",
+    templateJson: templateJson(firstTemplate),
+    visibility: "private"
+  });
+  await loadServerTemplates();
+  localCurrentTemplate.value = null;
+  selectServerTemplate(response.data?.id);
+  ElMessage.success("本地模板已作为首个后端模板保存");
+};
+
+const removeTemplate = async (item: TemplateLibraryOption) => {
+  await ElMessageBox.confirm("确认删除该模板？", "提示", { type: "warning" });
+  if (item.source === "server" && item.record?.id) {
+    await deleteQrLayoutTemplate(item.record.id);
+    await loadServerTemplates();
+  } else if (item.key === "local:current") {
+    localCurrentTemplate.value = null;
+  } else {
+    customTemplates.value = customTemplates.value.filter(templateItem => templateItem.name !== item.template.name);
+    persistCustomTemplates();
+  }
+  if (activeTemplateKey.value === item.key) useTemplate(templateOptions.value[0]?.key || `builtin:${templateExamples[0].name}`);
 };
 
 const triggerImport = () => templateInputRef.value?.click();
@@ -567,8 +1201,12 @@ const importTemplate = async (event: Event) => {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    template.value = JSON.parse(await readFileAsText(file));
+    template.value = normalizeTemplate(JSON.parse(await readFileAsText(file)));
+    localCurrentTemplate.value = cloneTemplate(template.value);
     selectedId.value = "";
+    activeTemplateKey.value = "local:current";
+    exampleName.value = activeTemplateKey.value;
+    activeTemplateName.value = template.value.name;
     snapshot();
     ElMessage.success("模板已导入");
   } catch {
@@ -749,6 +1387,7 @@ const normalizeSourceDraft = () => {
     prefix: sourceDraft.transform.prefix || "",
     suffix: sourceDraft.transform.suffix || ""
   };
+  sourceDraft.serial = normalizeSerialRule(sourceDraft.serial);
 };
 
 const sourceSummary = (source: QrLayoutObjectDataSource) => {
@@ -757,7 +1396,7 @@ const sourceSummary = (source: QrLayoutObjectDataSource) => {
     manual: "打印输入",
     date: `日期 ${source.dateFormat}${source.dateOffset ? ` 偏移${source.dateOffset}` : ""}`,
     time: `时间 ${source.timeFormat}`,
-    serial: `流水号 ${source.serial.start}-${source.serial.end}`,
+    serial: `流水号 ${source.serial.start} ${source.serial.direction === "decrement" ? "递减" : "递增"} 公差${source.serial.step}`,
     compose: "拼接",
     formula: "公式"
   };
@@ -779,7 +1418,12 @@ const finishTextEdit = () => {
 
 const changePaper = (name: string) => {
   const preset = paperPresets.find(item => item.name === name);
-  if (preset) template.value.paper = { ...preset };
+  const currentBorder = {
+    borderRadius: templateBorderRadius(template.value.paper),
+    borderVisible: templateBorderVisible(template.value.paper),
+    borderWidth: templateBorderWidth(template.value.paper)
+  };
+  if (preset) template.value.paper = normalizePaper({ ...preset, ...currentBorder });
   if (name === "自定义") template.value.paper.name = "自定义";
   snapshot();
 };
@@ -894,7 +1538,7 @@ const elementStyle = (item: QrLayoutElement) => ({
 });
 
 const textStyle = (item: QrLayoutElement) => ({
-  fontSize: `${item.fontSize}px`,
+  fontSize: `${item.fontSize * previewFontScale.value}px`,
   fontFamily: item.fontFamily,
   fontWeight: item.bold ? 700 : 400,
   textAlign: item.align,
@@ -908,18 +1552,18 @@ const sourceTextStyle = (item: Extract<QrLayoutElement, { type: "qr" | "code128"
     top: `${(point.y - item.y) * zoom.value}px`,
     width: `${point.width * zoom.value}px`,
     minHeight: `${point.height * zoom.value}px`,
-    fontSize: `${item.sourceText.fontSize}px`,
+    fontSize: `${item.sourceText.fontSize * previewFontScale.value}px`,
     fontFamily: item.sourceText.fontFamily,
     fontWeight: item.sourceText.bold ? 700 : 400
   };
 };
 
-const renderElement = (item: QrLayoutElement) => resolveElementValue(item);
+const renderElement = (item: QrLayoutElement) => resolveElementValue(item, undefined, template.value);
 
 const code128Svg = (content: string) => {
   const data = buildCode128Bars(content);
   const rects = data.bars.map(bar => `<rect x="${bar.x}" y="0" width="${bar.width}" height="48" />`).join("");
-  return `<svg viewBox="0 0 ${data.total} 48" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+  return `<svg viewBox="0 0 ${data.total} 48" preserveAspectRatio="none" style="display:block;width:100%;height:100%;" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
 };
 
 const openPrintDialog = (onlyFirst: boolean) => {
@@ -928,7 +1572,7 @@ const openPrintDialog = (onlyFirst: boolean) => {
 };
 
 const showTsplDialog = () => {
-  tsplText.value = generateBatchTspl(template.value, false);
+  tsplText.value = generateBatchTspl(template.value, false, printQuantity.value);
   tsplVisible.value = true;
 };
 
@@ -941,12 +1585,40 @@ const downloadTspl = () => {
   downloadText(`${template.value.name}.tspl`, tsplText.value, "text/plain");
 };
 
+const openPdfPreview = async (onlyFirst: boolean) => {
+  if (printing) {
+    ElMessage.warning("PDF正在生成，请稍候");
+    return;
+  }
+  const previewWindow = window.open("", "_blank");
+  if (!previewWindow) {
+    ElMessage.warning("浏览器拦截了PDF预览窗口，请允许弹窗后重试");
+    return;
+  }
+  previewWindow.document.write("<!doctype html><title>PDF生成中</title><body style=\"font-family:Arial,sans-serif;padding:24px;\">PDF生成中...</body>");
+  printing = true;
+  try {
+    const pdfBlob = await buildPrintPdf(onlyFirst);
+    const safePdfBlob = pdfBlob.type === "application/pdf" ? pdfBlob : new Blob([pdfBlob], { type: "application/pdf" });
+    if (printBlobUrl) URL.revokeObjectURL(printBlobUrl);
+    printBlobUrl = URL.createObjectURL(safePdfBlob);
+    previewWindow.location.href = printBlobUrl;
+  } catch (error) {
+    previewWindow.close();
+    const message = error instanceof Error ? error.message : String(error);
+    ElMessage.error(`PDF生成失败：${message}`);
+    console.error(error);
+  } finally {
+    printing = false;
+  }
+};
+
 const directPrint = async (onlyFirst: boolean) => {
   try {
     const response = await fetch("http://127.0.0.1:17620/print", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tspl: generateBatchTspl(template.value, onlyFirst), template: template.value })
+      body: JSON.stringify({ tspl: generateBatchTspl(template.value, onlyFirst, printQuantity.value), template: template.value })
     });
     if (!response.ok) throw new Error("print failed");
     ElMessage.success("已发送到本地打印服务");
@@ -956,55 +1628,224 @@ const directPrint = async (onlyFirst: boolean) => {
 };
 
 const openPrintPreview = async (onlyFirst: boolean) => {
-  const pdfBlob = await buildPrintPdf(onlyFirst);
-  if (printBlobUrl) URL.revokeObjectURL(printBlobUrl);
-  printBlobUrl = URL.createObjectURL(pdfBlob);
-  const win = window.open(printBlobUrl, "_blank");
-  if (!win) {
-    URL.revokeObjectURL(printBlobUrl);
-    printBlobUrl = "";
-    ElMessage.warning("浏览器拦截了打印预览窗口，请允许弹窗后重试");
+  if (printing) {
+    ElMessage.warning("打印预览正在生成，请稍候");
+    return;
+  }
+  printing = true;
+  try {
+    const pdfBlob = await buildPrintPdf(onlyFirst);
+    const safePdfBlob = pdfBlob.type === "application/pdf" ? pdfBlob : new Blob([pdfBlob], { type: "application/pdf" });
+    if (printBlobUrl) URL.revokeObjectURL(printBlobUrl);
+    printBlobUrl = URL.createObjectURL(safePdfBlob);
+    printJS({
+      printable: printBlobUrl,
+      type: "pdf",
+      showModal: true,
+      modalMessage: "正在准备打印预览...",
+      onError: () => {
+        window.open(printBlobUrl, "_blank");
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    ElMessage.error(`打印预览生成失败：${message}`);
+    console.error(error);
+  } finally {
+    printing = false;
   }
 };
 
 const buildPrintPdf = async (onlyFirst: boolean) => {
-  const pages = onlyFirst ? printPages.value.slice(0, 1) : printPages.value;
+  const pages = onlyFirst ? currentPrintPages.value.slice(0, 1) : currentPrintPages.value;
   const paper = template.value.paper;
+  const orientation = paper.width > paper.height ? "landscape" : "portrait";
   const pdf = new jsPDF({
     unit: "mm",
     format: [paper.width, paper.height],
-    orientation: paper.width > paper.height ? "landscape" : "portrait",
+    orientation,
     compress: true
   });
-  const host = document.createElement("div");
-  host.className = "qr-pdf-render-host";
-  host.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;z-index:-1;";
-  document.body.appendChild(host);
-  try {
-    for (let index = 0; index < pages.length; index++) {
-      const pageNode = document.createElement("div");
-      pageNode.style.cssText = `position:relative;width:${paper.width}mm;height:${paper.height}mm;overflow:hidden;background:#fff;`;
-      pageNode.innerHTML = (await Promise.all(sortedElements.value.filter(item => item.visible).map(item => renderPrintElement(item, pages[index])))).join("");
-      host.innerHTML = "";
-      host.appendChild(pageNode);
-      await waitForImages(pageNode);
-      const canvas = await html2canvas(pageNode, {
-        backgroundColor: "#ffffff",
-        scale: 3,
-        useCORS: true,
-        logging: false
-      });
-      if (index > 0) pdf.addPage([paper.width, paper.height], paper.width > paper.height ? "landscape" : "portrait");
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, paper.width, paper.height, undefined, "FAST");
-    }
-    return pdf.output("blob");
-  } finally {
-    document.body.removeChild(host);
+  const visibleElements = sortedElements.value.filter(item => item.visible);
+  for (let index = 0; index < pages.length; index++) {
+    if (index > 0) pdf.addPage([paper.width, paper.height], orientation);
+    await renderPdfPage(pdf, paper, visibleElements, pages[index]);
   }
+  const arrayBuffer = pdf.output("arraybuffer");
+  return new Blob([arrayBuffer], { type: "application/pdf" });
+};
+
+const renderPdfPage = async (pdf: jsPDF, paper: QrLayoutTemplate["paper"], elements: QrLayoutElement[], page: ReturnType<typeof buildPrintPages>[number]) => {
+  pdf.setFillColor(255, 255, 255);
+  const radius = templateBorderRadius(paper);
+  if (radius > 0) {
+    pdf.roundedRect(0, 0, paper.width, paper.height, radius, radius, "F");
+  } else {
+    pdf.rect(0, 0, paper.width, paper.height, "F");
+  }
+  for (const item of elements) {
+    const value = resolveElementValue(item, page, template.value);
+    if (item.type === "text") {
+      drawPdfText(pdf, item, value);
+    }
+    if (item.type === "qr") {
+      const src = await renderQr(value, qrPrintSize(item), item.errorCorrectionLevel);
+      pdf.addImage(src, "PNG", item.x, item.y, item.width, item.height, undefined, "FAST", item.rotate);
+      drawPdfSourceText(pdf, item, value);
+    }
+    if (item.type === "code128") {
+      drawPdfCode128(pdf, item, value);
+      drawPdfSourceText(pdf, item, value);
+    }
+    if (item.type === "image") {
+      pdf.addImage(item.src, imageFormat(item.src), item.x, item.y, item.width, item.height, undefined, "FAST", item.rotate);
+    }
+    if (item.type === "line") {
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(item.strokeWidth);
+      pdf.line(item.x, item.y + item.strokeWidth / 2, item.x + item.width, item.y + item.strokeWidth / 2);
+    }
+    if (item.type === "rect") {
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setFillColor(0, 0, 0);
+      pdf.setLineWidth(item.strokeWidth);
+      pdf.rect(item.x, item.y, item.width, item.height, item.fill ? "F" : "S");
+    }
+  }
+  drawPdfPaperBorder(pdf, paper);
+};
+
+const drawPdfPaperBorder = (pdf: jsPDF, paper: QrLayoutTemplate["paper"]) => {
+  if (!templateBorderVisible(paper)) return;
+  const width = templateBorderWidth(paper);
+  const radius = templateBorderRadius(paper);
+  const offset = width / 2;
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(width);
+  if (radius > 0) {
+    pdf.roundedRect(offset, offset, paper.width - width, paper.height - width, Math.max(radius - offset, 0), Math.max(radius - offset, 0), "S");
+    return;
+  }
+  pdf.rect(offset, offset, paper.width - width, paper.height - width, "S");
+};
+
+const drawPdfText = (pdf: jsPDF, item: QrLayoutElement, value: string) => {
+  drawPdfTextBlock(pdf, {
+    x: item.x,
+    y: item.y,
+    width: item.width,
+    height: item.height,
+    text: value,
+    fontSize: item.fontSize,
+    fontFamily: item.fontFamily,
+    bold: item.bold,
+    align: item.align,
+    lineHeight: item.lineHeight,
+    rotate: item.rotate
+  });
+};
+
+const drawPdfSourceText = (pdf: jsPDF, item: Extract<QrLayoutElement, { type: "qr" | "code128" }>, value: string) => {
+  if (!item.sourceText.visible) return;
+  const point = sourceTextPoint(item);
+  drawPdfTextBlock(pdf, {
+    x: point.x,
+    y: point.y,
+    width: point.width,
+    height: point.height,
+    text: value,
+    fontSize: item.sourceText.fontSize,
+    fontFamily: item.sourceText.fontFamily,
+    bold: item.sourceText.bold,
+    align: "center",
+    lineHeight: 1.15,
+    rotate: 0
+  });
+};
+
+const drawPdfTextBlock = (
+  pdf: jsPDF,
+  options: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+    fontSize: number;
+    fontFamily: string;
+    bold: boolean;
+    align: "left" | "center" | "right";
+    lineHeight: number;
+    rotate: number;
+  }
+) => {
+  const lineHeightMm = Math.max((options.fontSize * options.lineHeight) / cssPxPerMm, 1);
+  const boxWidthPx = options.width * cssPxPerMm;
+  const boxHeightPx = options.height * cssPxPerMm;
+  const verticalPaddingPx = Math.min(Math.max(options.fontSize * 0.16, 1), Math.max(boxHeightPx / 4, 1));
+  const contentHeightPx = Math.max(1, boxHeightPx - verticalPaddingPx * 2);
+  const maxLines = Math.max(1, Math.floor(contentHeightPx / (lineHeightMm * cssPxPerMm)));
+  const canvas = document.createElement("canvas");
+  const widthPx = Math.max(1, Math.ceil(boxWidthPx * pdfTextScale));
+  const heightPx = Math.max(1, Math.ceil(boxHeightPx * pdfTextScale));
+  canvas.width = widthPx;
+  canvas.height = heightPx;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.scale(pdfTextScale, pdfTextScale);
+  context.fillStyle = "#000000";
+  context.textBaseline = "top";
+  context.font = `${options.bold ? "700" : "400"} ${options.fontSize}px ${options.fontFamily}`;
+  const lines = String(options.text || "")
+    .split(/\r?\n/)
+    .flatMap(line => wrapCanvasText(context, line || " ", boxWidthPx))
+    .slice(0, maxLines);
+  const textX = options.align === "center" ? boxWidthPx / 2 : options.align === "right" ? boxWidthPx : 0;
+  lines.forEach((line, index) => {
+    context.textAlign = options.align;
+    context.fillText(line, textX, verticalPaddingPx + index * lineHeightMm * cssPxPerMm);
+  });
+  pdf.addImage(canvas, "PNG", options.x, options.y, options.width, options.height, undefined, "FAST", options.rotate);
+};
+
+const drawPdfCode128 = (pdf: jsPDF, item: Extract<QrLayoutElement, { type: "code128" }>, value: string) => {
+  const data = buildCode128Bars(value);
+  const unitWidth = item.width / data.total;
+  pdf.setFillColor(0, 0, 0);
+  data.bars.forEach(bar => {
+    pdf.rect(item.x + bar.x * unitWidth, item.y, Math.max(bar.width * unitWidth, 0.05), item.height, "F");
+  });
+};
+
+const wrapCanvasText = (context: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+  const lines: string[] = [];
+  let line = "";
+  Array.from(text).forEach(char => {
+    const nextLine = `${line}${char}`;
+    if (line && context.measureText(nextLine).width > maxWidth) {
+      lines.push(line);
+      line = char;
+      return;
+    }
+    line = nextLine;
+  });
+  lines.push(line || " ");
+  return lines;
+};
+
+const qrPrintSize = (item: Extract<QrLayoutElement, { type: "qr" }>) => {
+  return Math.max(512, Math.ceil((Math.max(item.width, item.height) / 25.4) * 600));
+};
+
+const imageFormat = (src: string) => {
+  if (/^data:image\/jpe?g/i.test(src)) return "JPEG";
+  if (/^data:image\/webp/i.test(src)) return "WEBP";
+  return "PNG";
 };
 
 const buildPrintHtml = async (pages: ReturnType<typeof buildPrintPages>) => {
   const paper = template.value.paper;
+  const borderStyle = templateBorderVisible(paper) ? `border:${templateBorderWidth(paper)}mm solid #000;` : "border:0;";
   const pageHtml = await Promise.all(
     pages.map(async page => {
       const elementHtml = await Promise.all(sortedElements.value.filter(item => item.visible).map(item => renderPrintElement(item, page)));
@@ -1017,7 +1858,7 @@ const buildPrintHtml = async (pages: ReturnType<typeof buildPrintPages>) => {
 .print-toolbar { position: sticky; top: 0; z-index: 10000; display: flex; gap: 8px; align-items: center; justify-content: center; padding: 10px; background: #fff; border-bottom: 1px solid #ddd; }
 .print-toolbar button { height: 32px; padding: 0 14px; cursor: pointer; border: 1px solid #cfd6df; border-radius: 4px; background: #fff; }
 .print-toolbar .primary { color: #fff; background: #2563eb; border-color: #2563eb; }
-.print-page { position: relative; width: ${paper.width}mm; height: ${paper.height}mm; margin: 8px auto; overflow: hidden; background: #fff; page-break-after: always; }
+.print-page { position: relative; width: ${paper.width}mm; height: ${paper.height}mm; margin: 8px auto; overflow: hidden; background: #fff; border-radius: ${templateBorderRadius(paper)}mm; ${borderStyle} page-break-after: always; }
 .item { position: absolute; overflow: visible; transform-origin: center center; }
 .text { white-space: pre-wrap; word-break: break-all; overflow:hidden; }
 .source { position: absolute; text-align: center; white-space: pre-wrap; word-break: break-all; }
@@ -1034,26 +1875,26 @@ ${pageHtml.join("")}
 };
 
 const renderPrintElement = async (item: QrLayoutElement, page: ReturnType<typeof buildPrintPages>[number]) => {
-  const common = `left:${item.x}mm;top:${item.y}mm;width:${item.width}mm;height:${item.height}mm;z-index:${item.zIndex};transform:rotate(${item.rotate}deg);`;
-  const value = resolveElementValue(item, page);
+  const common = `position:absolute;left:${item.x}mm;top:${item.y}mm;width:${item.width}mm;height:${item.height}mm;z-index:${item.zIndex};overflow:visible;box-sizing:border-box;transform:rotate(${item.rotate}deg);transform-origin:center center;`;
+  const value = resolveElementValue(item, page, template.value);
   if (item.type === "text") {
-    const style = `${common}font:${item.bold ? 700 : 400} ${item.fontSize}px/${item.lineHeight} ${item.fontFamily};text-align:${item.align};`;
+    const style = `${common}font-weight:${item.bold ? 700 : 400};font-size:${item.fontSize}px;font-family:${cssFontFamily(item.fontFamily)};line-height:${item.lineHeight};text-align:${item.align};white-space:pre-wrap;word-break:break-all;overflow:hidden;`;
     return `<div class="item text" style="${style}">${escapeHtml(value)}</div>`;
   }
   if (item.type === "qr") {
     const src = await renderQr(value, 256, item.errorCorrectionLevel);
-    return `<div class="item" style="${common}"><img src="${src}" />${sourcePrintHtml(item, value)}</div>`;
+    return `<div class="item" style="${common}"><img src="${src}" style="display:block;width:100%;height:100%;object-fit:contain;" />${sourcePrintHtml(item, value)}</div>`;
   }
-  if (item.type === "code128") return `<div class="item" style="${common}">${code128Svg(value)}${sourcePrintHtml(item, value)}</div>`;
-  if (item.type === "image") return `<div class="item" style="${common}"><img src="${item.src}" style="object-fit:${item.fit};" /></div>`;
+  if (item.type === "code128") return `<div class="item" style="${common}"><div style="width:100%;height:100%;">${code128Svg(value)}</div>${sourcePrintHtml(item, value)}</div>`;
+  if (item.type === "image") return `<div class="item" style="${common}"><img src="${item.src}" style="display:block;width:100%;height:100%;object-fit:${item.fit};" /></div>`;
   if (item.type === "line") return `<div class="item" style="${common}border-top:${item.strokeWidth}mm solid #000;"></div>`;
-  return `<div class="item" style="${common}"><div class="rect" style="border-width:${item.strokeWidth}mm;${item.fill ? "background:#000;" : ""}"></div></div>`;
+  return `<div class="item" style="${common}"><div class="rect" style="width:100%;height:100%;box-sizing:border-box;border:${item.strokeWidth}mm solid #000;${item.fill ? "background:#000;" : ""}"></div></div>`;
 };
 
 const sourcePrintHtml = (item: Extract<QrLayoutElement, { type: "qr" | "code128" }>, value: string) => {
   if (!item.sourceText.visible) return "";
   const point = sourceTextPoint(item);
-  const style = `left:${point.x - item.x}mm;top:${point.y - item.y}mm;width:${point.width}mm;font:${item.sourceText.bold ? 700 : 400} ${item.sourceText.fontSize}px ${item.sourceText.fontFamily};`;
+  const style = `position:absolute;left:${point.x - item.x}mm;top:${point.y - item.y}mm;width:${point.width}mm;min-height:${point.height}mm;font-weight:${item.sourceText.bold ? 700 : 400};font-size:${item.sourceText.fontSize}px;font-family:${cssFontFamily(item.sourceText.fontFamily)};line-height:1.15;text-align:center;white-space:pre-wrap;word-break:break-all;box-sizing:border-box;`;
   return `<div class="source" style="${style}">${escapeHtml(value)}</div>`;
 };
 
@@ -1075,6 +1916,7 @@ const waitForImages = async (root: HTMLElement) => {
 };
 
 const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const cssFontFamily = (value: string) => value.split(",").map(item => `"${item.trim().replace(/"/g, '\\"')}"`).join(",");
 const typeName = (type: QrLayoutElementType) => ({ text: "文本", qr: "二维码", code128: "Code128", image: "图片", line: "线条", rect: "矩形" })[type];
 const nextZIndex = () => Math.max(0, ...template.value.elements.map(item => item.zIndex)) + 1;
 const normalizeZIndex = () => sortedElements.value.forEach((item, index) => (item.zIndex = index + 1));
@@ -1092,7 +1934,7 @@ watch(
       template.value.elements
         .filter((item): item is Extract<QrLayoutElement, { type: "qr" }> => item.type === "qr")
         .map(async item => {
-          qrCache[item.id] = await renderQr(resolveElementValue(item), 256, item.errorCorrectionLevel);
+          qrCache[item.id] = await renderQr(resolveElementValue(item, undefined, template.value), 256, item.errorCorrectionLevel);
         })
     );
     refreshTarget();
@@ -1103,13 +1945,23 @@ watch(
 watch(
   template,
   () => {
+    stashActiveTemplate();
     persistTemplate();
   },
   { deep: true }
 );
 
-onMounted(() => {
+onMounted(async () => {
+  loadCustomTemplates();
+  loadSavedTemplates();
   loadLocalTemplate();
+  try {
+    await loadServerTemplates();
+    await createFirstServerTemplateFromLocal();
+  } catch (error) {
+    console.error(error);
+    ElMessage.warning("后端模板加载失败，本地模板已保留");
+  }
   snapshot();
 });
 
@@ -1177,7 +2029,7 @@ onBeforeUnmount(() => {
 
 .qr-layout__body {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 380px;
+  grid-template-columns: 300px minmax(0, 1fr) 380px;
   min-height: 0;
   flex: 1;
   overflow: hidden;
@@ -1231,18 +2083,122 @@ onBeforeUnmount(() => {
 
 .template-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .template-card {
   display: grid;
-  gap: 4px;
-  padding: 8px;
+  gap: 8px;
+  padding: 10px;
   color: #1f2937;
   text-align: left;
   cursor: pointer;
   background: #f8fafc;
   border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.template-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.template-card.active {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #93c5fd;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.template-card__main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+
+  strong {
+    line-height: 1.35;
+    word-break: break-all;
+  }
+}
+
+.template-card__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: flex-start;
+
+  :deep(.el-button) {
+    height: 22px;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+.template-card__meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.template-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.template-card__tag {
+  padding: 1px 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #475569;
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.template-card__tag.is-public {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.template-card__tag.is-private {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.template-card__tag.is-local {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.template-card__tag.is-builtin {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.template-card__owner {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-add-card {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  height: 54px;
+  color: #2563eb;
+  cursor: pointer;
+  background: #eff6ff;
+  border: 1px dashed #60a5fa;
   border-radius: 5px;
 }
 
@@ -1468,10 +2424,100 @@ onBeforeUnmount(() => {
   overflow: auto;
 }
 
-.print-source-row {
+.print-quantity-row {
   display: grid;
-  grid-template-columns: 160px repeat(4, minmax(0, 1fr));
+  grid-template-columns: 160px 180px;
   gap: 6px;
   align-items: center;
+  margin: 10px 0;
+}
+
+.print-source-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.template-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 18px;
+}
+
+.template-create__form {
+  min-width: 0;
+}
+
+.template-preview-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.template-preview-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.template-preview-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 230px;
+  overflow: hidden;
+  background:
+    linear-gradient(to right, rgb(17 24 39 / 6%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(17 24 39 / 6%) 1px, transparent 1px),
+    #ffffff;
+  background-size: 12px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+}
+
+.template-preview-paper {
+  position: relative;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 14%);
+}
+
+.template-preview-margin {
+  position: absolute;
+  background: rgb(37 99 235 / 8%);
+  border: 1px dashed #60a5fa;
+}
+
+.template-preview-size {
+  position: absolute;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: #344054;
+  background: rgb(255 255 255 / 88%);
+  border: 1px solid #d0d5dd;
+  border-radius: 4px;
+}
+
+.template-preview-size--top {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.template-preview-size--left {
+  top: 50%;
+  left: 6px;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+.template-preview-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #475467;
 }
 </style>

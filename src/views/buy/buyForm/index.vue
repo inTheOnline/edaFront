@@ -7,6 +7,9 @@
         <span>统一跟踪请购、审核、采购、领取和取消流程</span>
       </div>
       <div class="hero-actions">
+        <el-button plain :icon="viewMode === 'board' ? Tickets : Grid" @click="toggleViewMode">
+          {{ viewMode === "board" ? "列表视图" : "卡片视图" }}
+        </el-button>
         <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">申请请购</el-button>
         <el-button
           v-if="canPurchase"
@@ -20,6 +23,7 @@
       </div>
     </section>
 
+    <template v-if="viewMode === 'board'">
     <section class="summary-grid">
       <article class="summary-card audit">
         <p>待审核</p>
@@ -39,6 +43,35 @@
       </article>
     </section>
 
+    <section class="board-toolbar">
+      <div class="board-select">
+        <el-checkbox
+          :model-value="isBoardAllSelected"
+          :indeterminate="isBoardIndeterminate"
+          @change="toggleBoardSelectAll"
+        >
+          本页全选
+        </el-checkbox>
+        <span>已选 {{ boardSelectedIds.length }} 条</span>
+      </div>
+      <div class="board-actions">
+        <el-button v-if="canPurchase" type="success" :icon="ShoppingCart" plain @click="openBatchPurchase(boardSelectedIds)">
+          批量采购录入
+        </el-button>
+        <el-button
+          v-if="canPurchase"
+          type="warning"
+          :icon="Delete"
+          plain
+          :disabled="!boardSelectedIds.length"
+          @click="deleteSelected(boardSelectedIds)"
+        >
+          批量删除
+        </el-button>
+        <el-button :icon="Refresh" circle @click="reloadWorkbench" />
+      </div>
+    </section>
+
     <section class="visual-layout">
       <div class="kanban-wrap">
         <div v-for="lane in lanes" :key="lane.status" class="lane">
@@ -48,8 +81,15 @@
             <em>{{ lane.list.length }}</em>
           </header>
           <div class="lane-body">
-            <div v-if="lane.list.length" v-for="card in lane.list.slice(0, 4)" :key="getRowId(card)" class="lane-card">
-              <p class="card-title">{{ card.itemName || "未命名物品" }}</p>
+            <template v-if="lane.list.length">
+            <div v-for="card in lane.list" :key="getRowId(card)" class="lane-card">
+              <div class="card-head">
+                <el-checkbox
+                  :model-value="isBoardSelected(card)"
+                  @change="checked => toggleBoardSelection(card, checked)"
+                />
+                <p class="card-title">{{ card.itemName || "未命名物品" }}</p>
+              </div>
               <div class="card-meta">
                 <span>请购人：{{ getUserLabel(card.applyUserId) }}</span>
                 <span>操作人：{{ getUserLabel(card.userId) }}</span>
@@ -61,37 +101,91 @@
                 </el-tag>
                 <span>{{ card.expectedDate || "-" }}</span>
               </div>
+              <div class="card-actions">
+                <el-tooltip v-for="action in getRowActions(card)" :key="action.label" :content="action.label" placement="top">
+                  <el-button
+                    :type="action.type"
+                    :icon="action.icon"
+                    size="small"
+                    circle
+                    plain
+                    @click.stop="action.handler"
+                  />
+                </el-tooltip>
+              </div>
             </div>
+            </template>
             <div v-else class="lane-empty">暂无记录</div>
           </div>
         </div>
       </div>
 
-      <aside class="timeline-wrap">
-        <header>
-          <h3>最近动态</h3>
-          <span>按更新时间排序</span>
-        </header>
-        <el-timeline>
-          <el-timeline-item
-            v-for="(item, index) in timelineList"
-            :key="`${getRowId(item)}-${index}`"
-            :timestamp="item.updatedTime || item.createdTime || '-'"
-            placement="top"
-          >
-            <div class="timeline-item">
-              <strong>{{ item.itemName || "未命名物品" }}</strong>
-              <p>
-                状态：<span :class="statusClassMap[item.status || '待审核']">{{ item.status || "待审核" }}</span>
-              </p>
-              <p>请购人：{{ getUserLabel(item.applyUserId) }} · 操作人：{{ getUserLabel(item.userId) }}</p>
-            </div>
-          </el-timeline-item>
-          <div v-if="!timelineList.length" class="timeline-empty">暂无动态</div>
-        </el-timeline>
+      <aside class="side-stack">
+        <section class="todo-wrap">
+          <header>
+            <h3>待办项</h3>
+            <span>{{ todoUsingFallback ? "列表数据" : "接口数据" }}</span>
+          </header>
+          <el-tabs v-model="todoTab" class="todo-tabs">
+            <el-tab-pane v-for="group in todoGroups" :key="group.key" :name="group.key">
+              <template #label>
+                <span class="todo-tab-label">{{ group.label }} <em>{{ group.count }}</em></span>
+              </template>
+              <div v-loading="todoLoading" class="todo-list">
+                <div v-for="item in group.records" :key="`${group.key}-${getRowId(item)}`" class="todo-item">
+                  <div>
+                    <strong>{{ item.itemName || "未命名物品" }}</strong>
+                    <p>{{ getUserLabel(item.applyUserId) }} · {{ item.itemNumber || 0 }}{{ item.itemUnit || "" }}</p>
+                  </div>
+                  <div class="todo-actions">
+                    <el-tooltip v-for="action in getRowActions(item)" :key="action.label" :content="action.label" placement="top">
+                      <el-button
+                        :type="action.type"
+                        :icon="action.icon"
+                        size="small"
+                        circle
+                        plain
+                        @click.stop="action.handler"
+                      />
+                    </el-tooltip>
+                  </div>
+                </div>
+                <div v-if="!group.records.length" class="todo-empty">暂无待办</div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </section>
+
+        <section class="timeline-wrap">
+          <header>
+            <h3>最近动态</h3>
+            <span>按更新时间排序</span>
+          </header>
+          <el-timeline>
+            <el-timeline-item
+              v-for="(item, index) in timelineList"
+              :key="`${getRowId(item)}-${index}`"
+              :timestamp="item.updatedTime || item.createdTime || '-'"
+              :color="getStatusColor(item.status)"
+              placement="top"
+            >
+              <div class="timeline-item">
+                <strong>{{ item.itemName || "未命名物品" }}</strong>
+                <p>
+                  状态：<span :class="statusClassMap[item.status || '待审核']">{{ item.status || "待审核" }}</span>
+                </p>
+                <p>请购人：{{ getUserLabel(item.applyUserId) }} · 操作人：{{ getUserLabel(item.userId) }}</p>
+              </div>
+            </el-timeline-item>
+            <div v-if="!timelineList.length" class="timeline-empty">暂无动态</div>
+          </el-timeline>
+        </section>
       </aside>
     </section>
 
+    </template>
+
+    <div v-show="viewMode === 'list'" class="table-view">
     <ProTable
       class="purchase-table"
       :columns="columns"
@@ -213,6 +307,7 @@
         </el-button>
       </template>
     </ProTable>
+    </div>
 
     <PurchaseDrawer ref="drawerRef" />
     <BatchPurchaseDialog ref="batchDialogRef" />
@@ -221,7 +316,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, onMounted } from "vue";
+import { computed, reactive, ref, onMounted, watch } from "vue";
+import type { Component } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import PurchaseDrawer from "./components/PurchaseDrawer.vue";
 import BatchPurchaseDialog from "./components/BatchPurchaseDialog.vue";
@@ -233,9 +329,10 @@ import {
   passPurchase,
   rejectPurchase,
   cancelPurchase,
-  receivePurchase
+  receivePurchase,
+  getPurchaseTodo
 } from "@/api/modules/buy/officePurchase";
-import type { OfficePurchase, OfficePurchaseQuery, PurchaseStatus } from "@/api/interface/buy/officePurchase";
+import type { OfficePurchase, OfficePurchaseQuery, PurchaseStatus, PurchaseTodoResult } from "@/api/interface/buy/officePurchase";
 import { useDictStore } from "@/stores/modules/dict";
 import { useAuthStore } from "@/stores/modules/auth";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -248,7 +345,10 @@ import {
   Select,
   CloseBold,
   CircleCheck,
-  SwitchButton
+  SwitchButton,
+  Grid,
+  Tickets,
+  Refresh
 } from "@element-plus/icons-vue";
 
 const dictStore = useDictStore();
@@ -259,6 +359,20 @@ const batchDialogRef = ref<any>(null);
 const purchaseRecordDialogRef = ref<any>(null);
 
 const tableRecords = ref<OfficePurchase[]>([]);
+const viewMode = ref<"board" | "list">("board");
+const boardSelectedIds = ref<number[]>([]);
+const todoLoading = ref(false);
+const todoUsingFallback = ref(false);
+const todoData = ref<PurchaseTodoResult | null>(null);
+const todoTab = ref<"audit" | "purchase">("audit");
+
+interface RowAction {
+  label: string;
+  icon: Component;
+  type: "primary" | "success" | "warning" | "danger";
+  handler: () => void;
+  visible?: boolean;
+}
 
 const currentUserId = computed(() => Number(authStore.userInfo.id || 0));
 const canAssistApply = computed(() => authStore.isExistence("buy:apply:assist"));
@@ -288,7 +402,7 @@ const laneColorMap: Record<PurchaseStatus, string> = {
 
 // 初始化字典
 onMounted(async () => {
-  await dictStore.loadDicts(["user"]);
+  await Promise.all([dictStore.loadDicts(["user"]), loadTodo()]);
 });
 
 // 请求参数组装
@@ -362,6 +476,116 @@ const getUserLabel = (userId?: number) => {
   return String(dictStore.getLabel("user", userId) || userId);
 };
 
+const getStatusColor = (status?: PurchaseStatus) => laneColorMap[status || "待审核"];
+
+const toggleViewMode = () => {
+  viewMode.value = viewMode.value === "board" ? "list" : "board";
+};
+
+const visibleBoardIds = computed(() => tableRecords.value.map(item => getRowId(item)).filter(Boolean));
+const isBoardAllSelected = computed(
+  () => visibleBoardIds.value.length > 0 && visibleBoardIds.value.every(id => boardSelectedIds.value.includes(id))
+);
+const isBoardIndeterminate = computed(() => {
+  const selectedCount = visibleBoardIds.value.filter(id => boardSelectedIds.value.includes(id)).length;
+  return selectedCount > 0 && selectedCount < visibleBoardIds.value.length;
+});
+
+const isBoardSelected = (row: Partial<OfficePurchase>) => boardSelectedIds.value.includes(getRowId(row));
+
+const toggleBoardSelection = (row: Partial<OfficePurchase>, checked: string | number | boolean) => {
+  const id = getRowId(row);
+  if (!id) return;
+  if (checked) {
+    boardSelectedIds.value = Array.from(new Set([...boardSelectedIds.value, id]));
+    return;
+  }
+  boardSelectedIds.value = boardSelectedIds.value.filter(item => item !== id);
+};
+
+const toggleBoardSelectAll = (checked: string | number | boolean) => {
+  if (checked) {
+    boardSelectedIds.value = Array.from(new Set([...boardSelectedIds.value, ...visibleBoardIds.value]));
+    return;
+  }
+  boardSelectedIds.value = boardSelectedIds.value.filter(id => !visibleBoardIds.value.includes(id));
+};
+
+watch(tableRecords, list => {
+  const ids = list.map(item => getRowId(item));
+  boardSelectedIds.value = boardSelectedIds.value.filter(id => ids.includes(id));
+});
+
+const normalizeTodoRecords = (records?: OfficePurchase[]) =>
+  (records || []).map(item => ({
+    ...item,
+    id: item.id || item.purchaseId
+  }));
+
+const fallbackTodo = computed<PurchaseTodoResult>(() => {
+  const auditRecords = tableRecords.value.filter(item => canPassAudit(item) || canReject(item));
+  const purchaseRecords = tableRecords.value.filter(item => canPurchaseRow(item));
+  return {
+    auditTodo: {
+      count: auditRecords.length,
+      records: auditRecords
+    },
+    purchaseTodo: {
+      count: purchaseRecords.length,
+      records: purchaseRecords
+    }
+  };
+});
+
+const effectiveTodo = computed(() => todoData.value || fallbackTodo.value);
+const todoGroups = computed(() => [
+  {
+    key: "audit",
+    label: "审核待办",
+    count: effectiveTodo.value.auditTodo?.count || 0,
+    records: normalizeTodoRecords(effectiveTodo.value.auditTodo?.records).slice(0, 8)
+  },
+  {
+    key: "purchase",
+    label: "采购待办",
+    count: effectiveTodo.value.purchaseTodo?.count || 0,
+    records: normalizeTodoRecords(effectiveTodo.value.purchaseTodo?.records).slice(0, 8)
+  }
+]);
+
+const loadTodo = async () => {
+  todoLoading.value = true;
+  try {
+    const { data } = await getPurchaseTodo();
+    todoData.value = {
+      auditTodo: {
+        count: Number(data?.auditTodo?.count || 0),
+        records: normalizeTodoRecords(data?.auditTodo?.records)
+      },
+      purchaseTodo: {
+        count: Number(data?.purchaseTodo?.count || 0),
+        records: normalizeTodoRecords(data?.purchaseTodo?.records)
+      }
+    };
+    todoUsingFallback.value = false;
+  } catch (error) {
+    todoData.value = null;
+    todoUsingFallback.value = true;
+  } finally {
+    todoLoading.value = false;
+  }
+};
+
+const reloadWorkbench = () => {
+  proTableRef.value?.getTableList?.();
+  loadTodo();
+};
+
+const reloadAfterMutation = () => {
+  boardSelectedIds.value = [];
+  reloadWorkbench();
+};
+
 const isRelatedUser = (row: Partial<OfficePurchase>) =>
   Number(row.applyUserId) === currentUserId.value || Number(row.userId) === currentUserId.value;
 
@@ -398,6 +622,67 @@ const canCancel = (row: Partial<OfficePurchase>) => {
   const status = (row.status || "待审核") as PurchaseStatus;
   if (!["待审核", "已驳回", "待采购"].includes(status)) return false;
   return isRelatedUser(row);
+};
+
+const getRowActions = (row: Partial<OfficePurchase>): RowAction[] => {
+  const actions: RowAction[] = [
+    {
+      label: "查看",
+      icon: View,
+      type: "primary",
+      handler: () => openDrawer("查看", row)
+    },
+    {
+      label: "编辑",
+      icon: EditPen,
+      type: "primary",
+      handler: () => openDrawer("编辑", row),
+      visible: canEditRow(row)
+    },
+    {
+      label: "通过",
+      icon: Select,
+      type: "success",
+      handler: () => passRecord(row),
+      visible: canAudit.value && canPassAudit(row)
+    },
+    {
+      label: "驳回",
+      icon: CloseBold,
+      type: "danger",
+      handler: () => rejectRecord(row),
+      visible: canAudit.value && canReject(row)
+    },
+    {
+      label: "采购",
+      icon: ShoppingCart,
+      type: "success",
+      handler: () => openSinglePurchase(row),
+      visible: canPurchase.value && canPurchaseRow(row)
+    },
+    {
+      label: "领取",
+      icon: CircleCheck,
+      type: "success",
+      handler: () => receiveRecord(row),
+      visible: canReceive(row)
+    },
+    {
+      label: "取消",
+      icon: SwitchButton,
+      type: "warning",
+      handler: () => cancelRecord(row),
+      visible: canCancel(row)
+    },
+    {
+      label: "删除",
+      icon: Delete,
+      type: "danger",
+      handler: () => deleteRecord(getRowId(row)),
+      visible: canPurchase.value
+    }
+  ];
+  return actions.filter(action => action.visible !== false);
 };
 
 const columns = reactive<any[]>([
@@ -499,29 +784,36 @@ const openDrawer = (title: string, row: Partial<OfficePurchase> = {}) => {
     row,
     isView: title === "查看",
     canAssistApply: canAssistApply.value,
-    getTableList: proTableRef.value?.getTableList
+    getTableList: reloadAfterMutation
   });
 };
 
 const openSinglePurchase = (row: Partial<OfficePurchase>) => {
   purchaseRecordDialogRef.value?.open({
     purchaseId: getRowId(row),
-    getTableList: proTableRef.value?.getTableList
+    getTableList: reloadAfterMutation
   });
 };
 
-const openBatchPurchase = (ids: number[]) => {
+const normalizeIds = (ids: Array<number | string>) => ids.map(id => Number(id)).filter(Boolean);
+
+const openBatchPurchase = (ids: Array<number | string>) => {
   if (!ids?.length) {
     ElMessage.warning("请先选择请购记录");
     return;
   }
+  const purchaseIds = normalizeIds(ids);
   batchDialogRef.value?.open({
-    purchaseIds: ids,
-    getTableList: proTableRef.value?.getTableList
+    purchaseIds,
+    getTableList: reloadAfterMutation
   });
 };
 
 const openBatchPurchaseByTop = () => {
+  if (viewMode.value === "board") {
+    openBatchPurchase(boardSelectedIds.value);
+    return;
+  }
   ElMessage.info("请先在下方列表勾选请购记录后，再点击“批量采购录入”");
 };
 
@@ -529,24 +821,25 @@ const deleteRecord = async (id: number) => {
   await ElMessageBox.confirm("确认删除该请购记录吗？", "提示", { type: "warning" });
   await deletePurchase(id);
   ElMessage.success("删除成功");
-  proTableRef.value?.getTableList();
+  reloadAfterMutation();
 };
 
-const deleteSelected = async (ids: number[]) => {
+const deleteSelected = async (ids: Array<number | string>) => {
   if (!ids?.length) {
     ElMessage.warning("请先勾选请购记录");
     return;
   }
-  await ElMessageBox.confirm(`确认删除选中的 ${ids.length} 条记录吗？`, "提示", { type: "warning" });
-  await deleteBatchPurchase(ids);
+  const deleteIds = normalizeIds(ids);
+  await ElMessageBox.confirm(`确认删除选中的 ${deleteIds.length} 条记录吗？`, "提示", { type: "warning" });
+  await deleteBatchPurchase(deleteIds);
   ElMessage.success("批量删除成功");
-  proTableRef.value?.getTableList();
+  reloadAfterMutation();
 };
 
 const passRecord = async (row: Partial<OfficePurchase>) => {
   await passPurchase(getRowId(row));
   ElMessage.success("审核通过成功");
-  proTableRef.value?.getTableList();
+  reloadAfterMutation();
 };
 
 const rejectRecord = async (row: Partial<OfficePurchase>) => {
@@ -559,7 +852,7 @@ const rejectRecord = async (row: Partial<OfficePurchase>) => {
     });
     await rejectPurchase(getRowId(row), value || "");
     ElMessage.success("驳回成功");
-    proTableRef.value?.getTableList();
+    reloadAfterMutation();
   } catch (error) {
     // 用户主动取消驳回，不提示错误
   }
@@ -568,14 +861,14 @@ const rejectRecord = async (row: Partial<OfficePurchase>) => {
 const receiveRecord = async (row: Partial<OfficePurchase>) => {
   await receivePurchase(getRowId(row));
   ElMessage.success("领取成功");
-  proTableRef.value?.getTableList();
+  reloadAfterMutation();
 };
 
 const cancelRecord = async (row: Partial<OfficePurchase>) => {
   await ElMessageBox.confirm("确认取消该请购记录吗？", "取消确认", { type: "warning" });
   await cancelPurchase(getRowId(row));
   ElMessage.success("取消成功");
-  proTableRef.value?.getTableList();
+  reloadAfterMutation();
 };
 </script>
 
@@ -641,6 +934,31 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
   margin-bottom: 12px;
 }
 
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+
+  .board-select,
+  .board-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .board-select span {
+    font-size: 12px;
+    color: #64748b;
+  }
+}
+
 .summary-card {
   padding: 14px 16px;
   border-radius: 12px;
@@ -679,7 +997,7 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
 
 .visual-layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 340px;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -724,7 +1042,9 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
   }
 
   .lane-body {
+    max-height: 354px;
     min-height: 180px;
+    overflow-y: auto;
     padding: 8px;
   }
 }
@@ -736,11 +1056,23 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
   border: 1px solid #e2e8f0;
   border-radius: 9px;
 
+  .card-head {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
   .card-title {
-    margin: 0 0 6px;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
     font-size: 13px;
     font-weight: 600;
     color: #0f172a;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .card-meta {
@@ -758,6 +1090,21 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
     font-size: 11px;
     color: #64748b;
   }
+
+  .card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding-top: 7px;
+    margin-top: 7px;
+    border-top: 1px dashed #cbd5e1;
+
+    :deep(.el-button) {
+      width: 26px;
+      height: 26px;
+      margin-left: 0;
+    }
+  }
 }
 
 .lane-empty {
@@ -767,6 +1114,13 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
   color: #94a3b8;
 }
 
+.side-stack {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.todo-wrap,
 .timeline-wrap {
   padding: 12px 12px 4px;
   background: #ffffff;
@@ -787,6 +1141,73 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
       color: #64748b;
     }
   }
+}
+
+.todo-tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: 8px;
+  }
+}
+
+.todo-tab-label {
+  em {
+    margin-left: 4px;
+    font-size: 12px;
+    font-style: normal;
+    color: #64748b;
+  }
+}
+
+.todo-list {
+  min-height: 96px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.todo-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+
+  strong {
+    display: block;
+    max-width: 180px;
+    overflow: hidden;
+    font-size: 13px;
+    color: #0f172a;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #64748b;
+  }
+}
+
+.todo-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100px;
+
+  :deep(.el-button) {
+    width: 26px;
+    height: 26px;
+    margin-left: 0;
+  }
+}
+
+.todo-empty {
+  padding: 18px 0;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 .timeline-item {
@@ -813,6 +1234,10 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
   :deep(.card) {
     border-radius: 12px;
   }
+}
+
+.table-view {
+  margin-top: 2px;
 }
 
 .thumb-img {
@@ -866,6 +1291,11 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .board-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .kanban-wrap {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -890,6 +1320,10 @@ const cancelRecord = async (row: Partial<OfficePurchase>) => {
 
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .board-actions {
+    width: 100%;
   }
 }
 </style>

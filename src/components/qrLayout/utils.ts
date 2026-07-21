@@ -40,11 +40,11 @@ export const fontOptions = [
 ];
 
 export const paperPresets: QrLayoutPaper[] = [
-  { name: "20 x 30", width: 20, height: 30, marginX: 1, marginY: 1, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap" },
-  { name: "30 x 40", width: 30, height: 40, marginX: 1, marginY: 1, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap" },
-  { name: "50 x 30", width: 50, height: 30, marginX: 1, marginY: 1, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap" },
-  { name: "80 x 60", width: 80, height: 60, marginX: 2, marginY: 2, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap" },
-  { name: "100 x 80", width: 100, height: 80, marginX: 2, marginY: 2, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap" }
+  { name: "20 x 30", width: 20, height: 30, marginX: 1, marginY: 1, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap", borderRadius: 0, borderVisible: false, borderWidth: 0.3 },
+  { name: "30 x 40", width: 30, height: 40, marginX: 1, marginY: 1, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap", borderRadius: 0, borderVisible: false, borderWidth: 0.3 },
+  { name: "50 x 30", width: 50, height: 30, marginX: 1, marginY: 1, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap", borderRadius: 0, borderVisible: false, borderWidth: 0.3 },
+  { name: "80 x 60", width: 80, height: 60, marginX: 2, marginY: 2, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap", borderRadius: 0, borderVisible: false, borderWidth: 0.3 },
+  { name: "100 x 80", width: 100, height: 80, marginX: 2, marginY: 2, gap: 2, direction: 0, density: 8, speed: 4, offsetX: 0, offsetY: 0, mode: "gap", borderRadius: 0, borderVisible: false, borderWidth: 0.3 }
 ];
 
 export const mmToDot = (mm: number) => Math.round(mm * 8);
@@ -57,9 +57,7 @@ export const defaultTransform = (): QrLayoutDataTransform => ({
 
 export const defaultSerialRule = (): QrLayoutSerialRule => ({
   start: "001",
-  end: "100",
-  digits: 3,
-  repeat: 1,
+  direction: "increment",
   step: 1
 });
 
@@ -80,13 +78,25 @@ export const createObjectDataSource = (name = "数据源"): QrLayoutObjectDataSo
   transform: defaultTransform()
 });
 
-export const resolveExpression = (expression: string, values: Record<string, string>) => {
-  return decodeTextEscapes(expression.replace(/\{\{([^}]+)\}\}/g, (_, key: string) => values[key.trim()] ?? ""));
+export const normalizeSerialRule = (rule?: Partial<QrLayoutSerialRule>): QrLayoutSerialRule => ({
+  ...defaultSerialRule(),
+  ...(rule || {}),
+  direction: rule?.direction || "increment",
+  step: Math.max(Number(rule?.step) || 1, 1)
+});
+
+export const resolveExpression = (expression: string, values: Record<string, string>, fallback?: (key: string) => string) => {
+  return decodeTextEscapes(
+    expression.replace(/\{\{([^}]+)\}\}/g, (_, key: string) => {
+      const name = key.trim();
+      return Object.prototype.hasOwnProperty.call(values, name) ? values[name] : fallback?.(name) ?? "";
+    })
+  );
 };
 
-export const resolveElementValue = (element: QrLayoutElement, page?: QrLayoutPreviewPage) => {
+export const resolveElementValue = (element: QrLayoutElement, page?: QrLayoutPreviewPage, template?: QrLayoutTemplate, stack = new Set<string>()) => {
   const values = page?.data[element.id] || resolveElementData(element, 0);
-  return resolveExpression(element.expression, values);
+  return resolveExpression(element.expression, values, key => resolvePublicElementValue(key, element, page, template, stack));
 };
 
 export const resolveElementData = (element: QrLayoutElement, pageIndex = 0) => {
@@ -97,8 +107,8 @@ export const resolveElementData = (element: QrLayoutElement, pageIndex = 0) => {
   return values;
 };
 
-export const buildPrintPages = (template: QrLayoutTemplate): QrLayoutPreviewPage[] => {
-  const pageCount = Math.max(1, ...template.elements.flatMap(item => item.dataSources.map(serialPageCount)));
+export const buildPrintPages = (template: QrLayoutTemplate, count = 1): QrLayoutPreviewPage[] => {
+  const pageCount = Math.max(1, Math.floor(Number(count) || 1));
   return Array.from({ length: pageCount }, (_, index) => ({
     index: index + 1,
     data: Object.fromEntries(template.elements.map(item => [item.id, resolveElementData(item, index)]))
@@ -143,6 +153,10 @@ export const generateTspl = (template: QrLayoutTemplate, page: QrLayoutPreviewPa
     `REFERENCE ${mmToDot(paper.offsetX)},${mmToDot(paper.offsetY)}`,
     "CLS"
   ];
+  if (paper.borderVisible) {
+    const stroke = Math.max(1, mmToDot(paper.borderWidth || 0.3));
+    lines.push(`BOX 0,0,${mmToDot(paper.width)},${mmToDot(paper.height)},${stroke}`);
+  }
 
   [...template.elements]
     .filter(item => item.visible)
@@ -152,7 +166,7 @@ export const generateTspl = (template: QrLayoutTemplate, page: QrLayoutPreviewPa
       const y = mmToDot(item.y + paper.marginY);
       const width = mmToDot(item.width);
       const height = mmToDot(item.height);
-      const rawValue = resolveElementValue(item, page);
+      const rawValue = resolveElementValue(item, page, template);
       const value = escapeTspl(rawValue);
       if (item.type === "text") {
         rawValue.split(/\r?\n/).forEach((line, index) => {
@@ -185,8 +199,8 @@ export const generateTspl = (template: QrLayoutTemplate, page: QrLayoutPreviewPa
   return lines.join("\n");
 };
 
-export const generateBatchTspl = (template: QrLayoutTemplate, onlyFirst = false) => {
-  const pages = buildPrintPages(template);
+export const generateBatchTspl = (template: QrLayoutTemplate, onlyFirst = false, count = 1) => {
+  const pages = buildPrintPages(template, count);
   return (onlyFirst ? pages.slice(0, 1) : pages).map(page => generateTspl(template, page)).join("\n");
 };
 
@@ -251,22 +265,29 @@ const resolveDataSource = (source: QrLayoutObjectDataSource, values: Record<stri
 };
 
 const serialValue = (rule: QrLayoutSerialRule, pageIndex: number) => {
-  const start = Number(rule.start);
-  const repeat = Math.max(Number(rule.repeat) || 1, 1);
-  const step = Math.max(Number(rule.step) || 1, 1);
-  const digits = Math.max(Number(rule.digits) || rule.start.length || 1, 1);
-  const value = start + Math.floor(pageIndex / repeat) * step;
+  const normalized = normalizeSerialRule(rule);
+  const start = Number(normalized.start);
+  if (!Number.isFinite(start)) return "";
+  const step = Math.max(Number(normalized.step) || 1, 1);
+  const digits = Math.max(String(normalized.start || "").length, 1);
+  const value = start + pageIndex * step * (normalized.direction === "decrement" ? -1 : 1);
   return String(value).padStart(digits, "0");
 };
 
-const serialPageCount = (source: QrLayoutObjectDataSource) => {
-  if (source.sourceType !== "serial") return 1;
-  const start = Number(source.serial.start);
-  const end = Number(source.serial.end);
-  const step = Math.max(Number(source.serial.step) || 1, 1);
-  const repeat = Math.max(Number(source.serial.repeat) || 1, 1);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return 1;
-  return (Math.floor((end - start) / step) + 1) * repeat;
+const resolvePublicElementValue = (
+  key: string,
+  currentElement: QrLayoutElement,
+  page?: QrLayoutPreviewPage,
+  template?: QrLayoutTemplate,
+  stack = new Set<string>()
+) => {
+  if (!template) return "";
+  const target = template.elements.find(item => item.id !== currentElement.id && item.name === key);
+  if (!target || stack.has(target.id)) return "";
+  stack.add(target.id);
+  const value = resolveElementValue(target, page, template, stack);
+  stack.delete(target.id);
+  return value;
 };
 
 const applyTransform = (rawValue: string, transform: QrLayoutDataTransform) => {

@@ -3,6 +3,7 @@ export type QrLayoutPrintMode = "gap" | "blackMark";
 export type QrLayoutValueType = "text" | "number";
 export type QrLayoutSourceType = "fixed" | "manual" | "date" | "time" | "serial" | "compose" | "formula";
 export type QrLayoutDateFormat = "yyyyMMdd" | "yyyy/MM/dd" | "yyyy-MM-dd" | "yyyy年MM月dd日";
+export type QrLayoutSerialDirection = "increment" | "decrement";
 
 export interface QrLayoutPaper {
   name: string;
@@ -17,14 +18,18 @@ export interface QrLayoutPaper {
   offsetX: number;
   offsetY: number;
   mode: QrLayoutPrintMode;
+  borderRadius?: number;
+  borderVisible?: boolean;
+  borderWidth?: number;
 }
 
 export interface QrLayoutSerialRule {
   start: string;
-  end: string;
-  digits: number;
-  repeat: number;
+  direction: QrLayoutSerialDirection;
   step: number;
+  end?: string;
+  digits?: number;
+  repeat?: number;
 }
 
 export interface QrLayoutDataTransform {

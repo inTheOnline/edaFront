@@ -7,7 +7,7 @@ export const addSup = (sup: any ) => {
   return http.post<any>("/sup/add", sup);
 }
 export const delectSups = (ids: number[] ) => {
-  return http.post<any>("/sup/delectList", ids);
+  return http.post<any>("/sup/removes", ids);
 }
 export const alterSup = (sup: any ) => {
     return http.post<any>("/sup/alter", sup);

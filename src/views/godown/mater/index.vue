@@ -66,7 +66,7 @@ import { deleteById } from "@/api/modules/supWork";
 import BatchAddDialog from "./components/BatchAddDialog.vue";
 const authStore = useAuthStore();
 const dictStore = useDictStore()
-const priceDialogRef =ref(null);
+const priceDialogRef = ref<InstanceType<typeof BatchAddDialog> | null>(null);
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const dataCallback = (data) => {    // 数据回调
@@ -170,7 +170,7 @@ const openDrawer = async (title: string, row: Object = {}) => {
 };
 //价格修改
 const priceChange = async()=>{
-  priceDialogRef.value.open({
+  priceDialogRef.value?.open({
     materList: dictStore.dictMap['mater'], // 需包含 salePrice
     refreshTable: proTableRef.value?.getTableList
   });
@@ -237,6 +237,7 @@ const deleteFunction = async (id: number) => {
 }
 .ProTable{
 
-  height: 75vh;
+  height: 100%;
+  min-height: 0;
 }
 </style>

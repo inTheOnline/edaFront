@@ -76,6 +76,13 @@ export const GodownTypeMap = [
         name:"已检",
         color: "#3B5B8E",
         tagType:"info"
+    },
+    {
+        label: "外发回执入库",
+        value: "ready_in",
+        name:"未检",
+        color: "#F9E076",
+        tagType:"primary"
     }
 
 ] as const;

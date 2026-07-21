@@ -12,7 +12,6 @@
       title="订单管理"
       :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
       :virtualized="true"
-      table-height="70vh"
     >
       <!-- 🔥 核心功能保留：点击订单号查看出货记录 -->
       <template #orderNum="{ row }">
@@ -83,7 +82,7 @@ import { ColumnProps } from "@/components/ProTable/interface";
 import { useMapStore } from "@/stores/modules/map";
 import { useDictStore } from "@/stores/modules/dict";
 import { useAuthStore } from "@/stores/modules/auth";
-import { useDownload } from "@/hooks/useDownload";
+import * as XLSX from "xlsx";
 
 // 组件引入（你原有组件全部保留，只加BatchAddDialog）
 import ProTable from "@/components/ProTable/index.vue";
@@ -110,7 +109,7 @@ const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const dialogRef = ref<InstanceType<typeof ImportExcel> | null>(null);
 // 🔥 仅新增这一行
 const batchAddDialogRef = ref<any>(null);
-
+const stateMap = computed(() => dictStore.dictMap["state"] || []);
 // ====================== 响应式数据（完全不动） ======================
 const openDetailDialog = ref(false);
 const outboundRecordList = ref<any[]>([]);
@@ -164,8 +163,8 @@ const columns: ColumnProps[] = reactive([
     label: "订单状态",
     prop: "state",
     tag: true,
-    enum: getStateApi,
-    fieldNames: { label: "state", value: "value" },
+    enum: stateMap,
+    fieldNames: { label: "label", value: "value" },
     width: 120,
     align: "center",
   },
@@ -204,19 +203,44 @@ const resetStatus = () => {
 };
 const downloadFile = async () => {
   try {
-    await ElMessageBox.confirm("确认导出订单数据？", "温馨提示", { type: "warning" });
-    const loading = ElLoading.service({ text: "导出中..." });
-    try {
-      useDownload(getModel, "订单列表", proTableRef.value?.searchParam);
-      ElMessage.success("导出成功");
-    } catch (error) {
-      ElMessage.error("导出失败");
-      console.error("Export failed:", error);
-    } finally {
-      loading.close();
-    }
+    await ElMessageBox.confirm("确认导出当前筛选条件下的全部订单物料数据吗？", "导出确认", { type: "warning" });
   } catch {
-    ElMessage.info("已取消导出");
+    return;
+  }
+  const loading = ElLoading.service({ text: "正在导出..." });
+  try {
+    const params = { ...initParam.value, ...(proTableRef.value?.searchParam || {}) };
+    const firstPage = (await getOrderMater({ ...params, pageNum: 1, pageSize: 1 } as any)).data;
+    const records = firstPage.total
+      ? (await getOrderMater({ ...params, pageNum: 1, pageSize: firstPage.total } as any)).data.records
+      : [];
+    const getDictLabel = (type: string, value: unknown) =>
+      dictStore.dictMap[type]?.find(item => String(item.value) === String(value))?.label || value || "";
+    const worksheet = XLSX.utils.json_to_sheet(
+      records.map(item => ({
+        创建时间: item.localTime || "",
+        客户: item.custName || getDictLabel("cust", item.custId),
+        订单编号: item.orderNum || "",
+        物料编号: item.materNum || "",
+        物料名称: item.materName || "",
+        订单总数: item.totalNumber,
+        已交数量: item.alreadyNumber || 0,
+        未交数量: item.notAlreadyNumber || 0,
+        创建人: item.createUserName || getDictLabel("user", item.createUserId),
+        订单状态: item.stateLabel || getDictLabel("state", item.state),
+        备注: item.remark || ""
+      })),
+      { header: ["创建时间", "客户", "订单编号", "物料编号", "物料名称", "订单总数", "已交数量", "未交数量", "创建人", "订单状态", "备注"] }
+    );
+    worksheet["!cols"] = [20, 18, 20, 18, 24, 12, 12, 12, 16, 14, 24].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "订单详情（物料）");
+    XLSX.writeFile(workbook, `订单详情（物料）_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success(`成功导出 ${records.length} 条数据`);
+  } catch {
+    ElMessage.error("导出失败，请稍后重试");
+  } finally {
+    loading.close();
   }
 };
 
@@ -278,7 +302,7 @@ const openDrawer = (type: string) => {
 // 初始化（完全不动）
 onMounted(async () => {
   try {
-    await dictStore.loadDicts(["cust", "user", "mater"]);
+    await dictStore.loadDicts(["cust", "user", "mater", "state"]);
   } catch (error) {
     ElMessage.error("字典数据加载失败");
     console.error(error);

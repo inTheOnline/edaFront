@@ -25,6 +25,23 @@
 - getCheckModel => DOWNLOAD /hr/check/getModel
 - getDepartmentApi => GET /department/getMap
 - getStateApi => GET /outgoing/getSubc_state
+- calculateSalary => POST /hr/salary/calculate，上传汇总考勤表并计算工资。
+- exportSalary => GET /hr/salary/export?month=yyyy-MM，导出指定月份工资明细。
+
+## 工资计算规则
+- 工资标准取后端 `salary_norm` 表：工资基数 `basic_norm`、加班基数 `over_norm`、夜班补贴基数 `night_norm`、其他补贴 `other_norm`、岗位补贴 `post_norm`、奖金 `bonus`、餐费 `eat_cutpay`、固定扣款 `fixed_deduction`、社保 `social`。
+- 每月变动扣款从上传考勤表读取：`水电费扣款` sheet 读取水电费，`其他扣款项` sheet 读取其他扣款和考勤扣除小时，`个税扣款` sheet 读取个税。
+- 普工沿用现有普工算法：工资基数等于深圳最低工资基数时识别为普工，正班、平时加班、周末加班按普工规则计算。
+- 非普工标准工作时间：文员 208 小时，其他非普工 260 小时。
+- 非普工正班工资：`(工资基数 - 全勤基数) / 标准工作时间 * min(上班时间, 标准工作时间)`，当前全勤基数为 100。
+- 非普工加班费：`加班基数 / 标准工作时间 * max(上班时间 - 标准工作时间, 0)`。
+- 上班时间先取考勤表“出勤”列；没有出勤时取“实勤 + 有薪假”；再减去“其他扣款项”里的考勤扣除小时，最低为 0。
+- 全勤奖：有请假则为 0；非当月入职且无请假为 100；当月入职且无请假时按 `100 * 上班时间 / 标准工作时间` 折算，最高 100。
+- 夜班补贴：`夜班补贴基数 * 夜班天数`。
+- 其他补贴、岗位补贴按出勤封顶折算：`补贴标准 / 标准工作时间 * 正班时间`，最高不超过对应补贴标准。
+- 工资合计：`正班工资 + 加班费 + 周末加班费 + 全勤奖 + 夜班补贴 + 其他补贴 + 岗位补贴 + 奖金 - 扣款合计`。
+- 扣款合计：`餐费 + 固定扣款 + 社保 + 水电费扣款 + 其他扣款 + 个税扣款`。
+- 固定工资人员名单暂未写入本版算法，确认本版结果后再补。
 
 ## 代码习惯规范
 - 主要使用 script setup + TypeScript，页面逻辑直接写在 index.vue。

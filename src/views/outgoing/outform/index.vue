@@ -15,6 +15,7 @@
       <template #tableHeader="scope">
         <el-button type="primary" class="hero-btn hero-btn--primary" :icon="CirclePlus" @click="openDrawer('新增')">新增外发表</el-button>
         <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Upload" @click="openBatchDialog">批量增加</el-button>
+        <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Download" @click="exportExcel">导出 Excel</el-button>
         <el-button
           type="danger"
           plain
@@ -38,6 +39,16 @@
             <span class="selection-summary__label">未回货</span>
             <span class="selection-summary__value">{{ Number(notbackNumberTotal).toLocaleString() }}</span>
           </div>
+          <el-button
+            type="primary"
+            plain
+            class="selection-summary__clear"
+            :icon="CircleClose"
+            :disabled="!scope.isSelected"
+            @click="cancelSelect"
+          >
+            取消选择
+          </el-button>
         </div>
       </template>
 
@@ -55,9 +66,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from "vue";
-import { CirclePlus, Delete, EditPen, Upload, View } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
+import { computed, h, nextTick, onMounted, reactive, ref, watch } from "vue";
+import { CircleClose, CirclePlus, Delete, Download, EditPen, Upload, View } from "@element-plus/icons-vue";
+import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
+import * as XLSX from "xlsx";
 import ProTable from "@/components/ProTable/index.vue";
 import type { ColumnProps, EnumProps } from "@/components/ProTable/interface";
 import { getAllSup } from "@/api/modules/sup";
@@ -85,6 +97,10 @@ type RelatedGroup = {
   records: RelatedOutbackRecord[];
 };
 
+type OptionValue = string | number | boolean | any[];
+
+const OUTFORM_OPTION_PAGE_SIZE = 1000;
+
 const dictStore = useDictStore();
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
@@ -94,16 +110,148 @@ const supplierEnum = computed(() => dictStore.dictMap.sup || []);
 const materEnum = computed(() => dictStore.dictMap.mater || []);
 const batchSupplierOptions = ref<Array<{ label: string; value: string | number; callName?: string }>>([]);
 const stateEnum = ref<EnumProps[]>([]);
+const allOutformRecords = ref<OutformRecord[]>([]);
+const isDynamicOptionsReady = ref(false);
+const isDynamicOptionsFailed = ref(false);
+const lastChangedSearchKey = ref<"supId" | "materId" | "state">();
 const pendingDeleteIds = ref<number[]>([]);
 const selectedList = computed(() => proTableRef.value?.selectedList || []);
 const numberTotal = computed(() => selectedList.value.reduce((sum, item) => sum + Number(item.number || 0), 0));
 const backNumberTotal = computed(() => selectedList.value.reduce((sum, item) => sum + Number(item.backNumber || 0), 0));
 const notbackNumberTotal = computed(() => selectedList.value.reduce((sum, item) => sum + Number(item.notbackNumber || 0), 0));
+const searchParam = computed<Record<string, any>>(() => (proTableRef.value?.searchParam || {}) as Record<string, any>);
+const selectedSupId = computed(() => searchParam.value.supId);
+const selectedMaterId = computed(() => searchParam.value.materId);
+const selectedState = computed(() => searchParam.value.state);
 
 const dataCallback = (data: { records: OutformRecord[]; total: number }) => ({
   list: data.records,
   total: data.total
 });
+
+const isEmptyValue = (value: unknown) => value === undefined || value === null || value === "";
+
+const isSameValue = (left: unknown, right: unknown) => String(left) === String(right);
+
+const findOption = (options: EnumProps[], value: unknown) => options.find(item => isSameValue(item.value, value));
+
+const findMaterialOption = (record: OutformRecord) => {
+  if (!isEmptyValue(record.materId)) return findOption(materEnum.value, record.materId);
+  if (!record.materNum) return undefined;
+  return (materEnum.value as EnumProps[]).find(item => String(item.num || item.label) === String(record.materNum));
+};
+
+const getMaterialValue = (record: OutformRecord) => record.materId ?? findMaterialOption(record)?.value;
+
+const normalizeStateValue = (value: unknown) => {
+  if (typeof value === "string" && value.trim() && !Number.isNaN(Number(value))) return Number(value);
+  return value as OptionValue;
+};
+
+const getStateLabel = (record: OutformRecord) =>
+  record.stateLabel || findOption(stateEnum.value, normalizeStateValue(record.state))?.label || String(record.state);
+
+const buildUniqueOptions = <T,>(
+  list: T[],
+  getValue: (item: T) => unknown,
+  getOption: (item: T, value: OptionValue) => EnumProps | null
+) => {
+  const valueSet = new Set<string>();
+  const options: EnumProps[] = [];
+
+  list.forEach(item => {
+    const rawValue = getValue(item);
+    if (isEmptyValue(rawValue)) return;
+    const value = rawValue as OptionValue;
+    const valueKey = String(value);
+    if (valueSet.has(valueKey)) return;
+    const option = getOption(item, value);
+    if (!option?.label) return;
+    valueSet.add(valueKey);
+    options.push(option);
+  });
+
+  return options;
+};
+
+const filterRecordsBySearch = (ignoreKey: "supId" | "materId" | "state") =>
+  allOutformRecords.value.filter(item => {
+    const materValue = getMaterialValue(item);
+    return (
+      (ignoreKey === "supId" || isEmptyValue(selectedSupId.value) || isSameValue(item.supId, selectedSupId.value)) &&
+      (ignoreKey === "materId" || isEmptyValue(selectedMaterId.value) || isSameValue(materValue, selectedMaterId.value)) &&
+      (ignoreKey === "state" || isEmptyValue(selectedState.value) || isSameValue(item.state, selectedState.value))
+    );
+  });
+
+const shouldUseRecordOptions = computed(() => isDynamicOptionsReady.value && !isDynamicOptionsFailed.value);
+
+const dynamicSupplierEnum = computed<EnumProps[]>(() => {
+  if (!shouldUseRecordOptions.value) return supplierEnum.value as EnumProps[];
+  return buildUniqueOptions(
+    filterRecordsBySearch("supId"),
+    item => item.supId,
+    (item, value) => ({
+      label: item.supName || String(findOption(supplierEnum.value, value)?.label || ""),
+      value
+    })
+  );
+});
+
+const dynamicMaterEnum = computed<EnumProps[]>(() => {
+  if (!shouldUseRecordOptions.value) return materEnum.value as EnumProps[];
+  return buildUniqueOptions(
+    filterRecordsBySearch("materId"),
+    getMaterialValue,
+    (item, value) => {
+      const materialOption = findMaterialOption(item);
+      const num = item.materNum || materialOption?.num || materialOption?.label;
+      return {
+        label: item.materName || materialOption?.label || String(num || ""),
+        value,
+        num
+      };
+    }
+  );
+});
+
+const dynamicStateEnum = computed<EnumProps[]>(() => {
+  if (!shouldUseRecordOptions.value) return stateEnum.value;
+  return buildUniqueOptions(
+    filterRecordsBySearch("state"),
+    item => normalizeStateValue(item.state),
+    (item, value) => ({
+      label: getStateLabel(item),
+      value,
+      tagType: findOption(stateEnum.value, value)?.tagType || item.stateTagType || "info"
+    })
+  );
+});
+
+const optionIncludesValue = (options: EnumProps[], value: unknown) =>
+  isEmptyValue(value) || options.some(item => isSameValue(item.value, value));
+
+const clearInvalidSearchValue = (preserveKey?: "supId" | "materId" | "state") => {
+  const param = searchParam.value;
+  if (!param) return;
+  if (preserveKey !== "supId" && !optionIncludesValue(dynamicSupplierEnum.value, param.supId)) param.supId = undefined;
+  if (preserveKey !== "materId" && !optionIncludesValue(dynamicMaterEnum.value, param.materId)) param.materId = undefined;
+  if (preserveKey !== "state" && !optionIncludesValue(dynamicStateEnum.value, param.state)) param.state = undefined;
+};
+
+const syncSearchEnumMap = () => {
+  const enumMap = proTableRef.value?.enumMap as Map<string, EnumProps[]> | { value?: Map<string, EnumProps[]> } | undefined;
+  const map = enumMap instanceof Map ? enumMap : enumMap?.value;
+  if (!map) return;
+  map.set("supId", dynamicSupplierEnum.value);
+  map.set("materId", dynamicMaterEnum.value);
+  map.set("state", dynamicStateEnum.value);
+};
+
+const syncDynamicSearchOptions = (preserveKey = lastChangedSearchKey.value) => {
+  clearInvalidSearchValue(preserveKey);
+  syncSearchEnumMap();
+};
 
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", width: 60 },
@@ -143,7 +291,7 @@ const columns: ColumnProps[] = reactive([
     prop: "supId",
     label: "供应商",
     minWidth: 140,
-    enum: supplierEnum,
+    enum: dynamicSupplierEnum,
     search: {
       el: "select",
       props: { filterable: true, placeholder: "请选择供应商" }
@@ -153,7 +301,7 @@ const columns: ColumnProps[] = reactive([
     prop: "materId",
     label: "物料编码",
     minWidth: 140,
-    enum: materEnum,
+    enum: dynamicMaterEnum,
     fieldNames: { label: "num", value: "value" },
     search: {
       el: "select",
@@ -183,7 +331,7 @@ const columns: ColumnProps[] = reactive([
     label: "状态",
     width: 100,
     tag: true,
-    enum: stateEnum,
+    enum: dynamicStateEnum,
     search: {
       el: "select",
       props: { placeholder: "请选择状态" }
@@ -203,7 +351,7 @@ const openDrawer = (title: string, row: Partial<OutformRecord> = {}) => {
     maters: materEnum.value,
     stateOptions: stateEnum.value,
     submitApi: (payload, editId) => (editId ? updateOutformApi(editId, payload) : createOutformApi(payload)),
-    getTableList: proTableRef.value?.getTableList
+    getTableList: refreshOutformPage
   });
 };
 
@@ -213,12 +361,71 @@ const openBatchDialog = () => {
     maters: materEnum.value,
     stateOptions: stateEnum.value,
     submitApi: createOutformBatchApi,
-    getTableList: proTableRef.value?.getTableList
+    getTableList: refreshOutformPage
   });
 };
 
 const handleRowClick = (row: OutformRecord) => {
   proTableRef.value?.element?.toggleRowSelection(row);
+};
+
+const cancelSelect = () => {
+  proTableRef.value?.element?.clearSelection();
+};
+
+// 导出当前筛选条件下的全部委外表单
+const exportExcel = async () => {
+  try {
+    await ElMessageBox.confirm("确认导出当前筛选条件下的全部委外表单数据吗？", "导出确认", { type: "warning" });
+  } catch {
+    return;
+  }
+  const loading = ElLoading.service({ text: "正在导出..." });
+
+  try {
+    const currentSearchParam = { ...(proTableRef.value?.searchParam || {}) };
+    const firstPage = await unwrapData(getOutformPageApi({ ...currentSearchParam, pageNum: 1, pageSize: 1 }));
+    const records = firstPage.total
+      ? (await unwrapData(getOutformPageApi({ ...currentSearchParam, pageNum: 1, pageSize: firstPage.total }))).records
+      : [];
+    const data = records.map(item => ({
+      外发日期: formatOutgoingDate(item.subcDate),
+      外发单号: item.subcNum,
+      供应商: item.supName || "",
+      物料编码: item.materNum || "",
+      物料名称: item.materName || "",
+      外发数量: item.number,
+      已回货数量: item.backNumber || 0,
+      未回货数量: item.notbackNumber || 0,
+      状态: getStateLabel(item),
+      整单备注: item.subcRemark || "",
+      行备注: item.remark || ""
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data, {
+      header: [
+        "外发日期",
+        "外发单号",
+        "供应商",
+        "物料编码",
+        "物料名称",
+        "外发数量",
+        "已回货数量",
+        "未回货数量",
+        "状态",
+        "整单备注",
+        "行备注"
+      ]
+    });
+    worksheet["!cols"] = [12, 20, 18, 18, 22, 12, 14, 14, 12, 24, 24].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "委外表单");
+    XLSX.writeFile(workbook, `委外表单_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success(`成功导出 ${records.length} 条数据`);
+  } catch {
+    ElMessage.error("导出失败，请稍后重试");
+  } finally {
+    loading.close();
+  }
 };
 
 const loadBatchSuppliers = async () => {
@@ -232,6 +439,36 @@ const loadBatchSuppliers = async () => {
   } catch {
     batchSupplierOptions.value = [];
   }
+};
+
+const loadAllOutformRecords = async () => {
+  const records: OutformRecord[] = [];
+  let pageNum = 1;
+  let total = 0;
+
+  try {
+    do {
+      const data = await unwrapData(getOutformPageApi({ pageNum, pageSize: OUTFORM_OPTION_PAGE_SIZE }));
+      const pageRecords = data?.records || [];
+      total = Number(data?.total || pageRecords.length || records.length);
+      records.push(...pageRecords);
+      if (!pageRecords.length) break;
+      pageNum += 1;
+    } while (records.length < total);
+
+    allOutformRecords.value = records;
+    isDynamicOptionsReady.value = true;
+    isDynamicOptionsFailed.value = false;
+  } catch {
+    isDynamicOptionsFailed.value = true;
+  } finally {
+    syncDynamicSearchOptions();
+  }
+};
+
+const refreshOutformPage = async () => {
+  await proTableRef.value?.getTableList();
+  await loadAllOutformRecords();
 };
 
 const buildRelatedGroups = async (rows: OutformRecord[]) => {
@@ -264,19 +501,40 @@ const confirmDelete = async () => {
   await deleteOutformApi(pendingDeleteIds.value);
   ElMessage.success("删除成功");
   pendingDeleteIds.value = [];
-  proTableRef.value?.getTableList();
+  await refreshOutformPage();
 };
+
+const handleSearchValueChange = (key: "supId" | "materId" | "state") => {
+  lastChangedSearchKey.value = key;
+  syncDynamicSearchOptions(key);
+  nextTick(() => {
+    if (lastChangedSearchKey.value === key) lastChangedSearchKey.value = undefined;
+  });
+};
+
+watch(selectedSupId, () => handleSearchValueChange("supId"));
+watch(selectedMaterId, () => handleSearchValueChange("materId"));
+watch(selectedState, () => handleSearchValueChange("state"));
+watch([dynamicSupplierEnum, dynamicMaterEnum, dynamicStateEnum], () => syncDynamicSearchOptions(), { deep: true });
 
 onMounted(async () => {
   await dictStore.loadDicts(["sup", "mater"]);
   await loadBatchSuppliers();
   stateEnum.value = mapStateEnum(await unwrapData(getOutItemStateApi()));
+  await nextTick();
+  await loadAllOutformRecords();
+  syncDynamicSearchOptions();
 });
 </script>
 
 <style scoped lang="scss">
 .outgoing-page {
-  min-height: calc(100vh - 120px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: 14px;
   background:
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
@@ -339,6 +597,10 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 700;
   color: var(--el-color-primary);
+}
+
+.selection-summary__clear {
+  margin-left: 2px;
 }
 
 .pending-chip {

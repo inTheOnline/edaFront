@@ -3,7 +3,6 @@
     <div class="ProTable">
       <ProTable
         class="ProTable-container"
-        height="calc(100vh - 260px)"
         :columns="columns"
         :request-api="getFlow"
         :dataCallback="dataCallback"
@@ -221,7 +220,7 @@ const statConfig = [
   { label: "总数量", field: "number", type: "sum" },
 ];
 // 打开抽屉
-const openDrawer = async (title: string, row: Object = {}) => {
+const openDrawer = async (title: string, row: Record<string, any> = {}) => {
   const params = {
     title,
     isView: title === "查看",
@@ -305,12 +304,14 @@ const deleteFunction = async (id: number) => {
 }
 //固定表头
 .ProTable{
-  height: 75vh;
+  height: 100%;
+  min-height: 0;
 }
 .ProTable-container {
   display: flex;
   width: 100%;
-  height: 70%;
+  height: 100%;
+  min-height: 0;
 }
 // 🔥 新增：鼠标悬浮行变成小手，提示可点击
 :deep(.el-table__row) {
