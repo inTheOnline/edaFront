@@ -22,11 +22,12 @@ export interface ResPage<T> {
 
 // 分页请求参数
 export interface ReqPage {
-  pageNum: number;
-  pageSize: number;
+  pageNum?: number;
+  pageSize?: number;
+  [key: string]: any;
 }
 export interface ReqPageT<T = any>extends ReqPage{
-  data:T;
+  data?:T;
 }
 
 // 文件上传模块
@@ -50,7 +51,9 @@ export namespace Login {
   }
   //用户信息模版(我加的)
   export interface ResUserInfo {
+    id?: number;
     userId: number;
+    userName?: string;
     username: string;
     //姓名
     name: string;
@@ -63,11 +66,18 @@ export namespace Login {
     //用户头像
     avatar: string;
     power: string[];
+    powers?: string[];
+    token?: string;
+    roleId?: number;
+    custId?: number;
   }
 }
 
 // 用户管理模块
 export namespace User {
+  export interface ResUserDetail {
+    [key: string]: any;
+  }
   export interface ReqUserParams extends ReqPage {
     username: string;
     gender: number;

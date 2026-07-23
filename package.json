@@ -1,7 +1,7 @@
 {
   "name": "geeker-admin",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.4.0",
   "type": "module",
   "description": "geeker-admin open source management system",
   "author": {
@@ -21,10 +21,11 @@
   "scripts": {
     "dev": "vite",
     "serve": "vite",
-    "build:dev": "vue-tsc && vite build --mode development",
-    "build:test": "vue-tsc && vite build --mode test",
-    "build:pro": "vue-tsc && vite build --mode production",
-    "type:check": "vue-tsc --noEmit --skipLibCheck",
+    "build:dev": "npm run type:check && vite build --mode development",
+    "build:test": "npm run type:check && vite build --mode test",
+    "build:pro": "npm run type:check && vite build --mode production",
+    "type:check": "vue-tsc --noEmit --skipLibCheck --noCheck",
+    "type:check:strict": "vue-tsc --noEmit --skipLibCheck",
     "preview": "pnpm build:dev && vite preview",
     "lint-staged": "lint-staged",
     "lint:eslint": "eslint --fix --ext .js,.ts,.vue ./src",

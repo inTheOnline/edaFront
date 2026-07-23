@@ -45,7 +45,7 @@
       <el-button @click="drawerVisible = false">取消</el-button>
       <el-button v-show="!drawerProps.isView" type="primary" @click="handleSubmit">确定</el-button>
     </template>
-  </el-draw>
+  </el-drawer>
 </template>
 
 <script setup lang="ts" name="UserDrawer">

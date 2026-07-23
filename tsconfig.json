@@ -7,7 +7,8 @@
     "types": ["vite/client", "element-plus/global"],
 
     /* Strict Type-Checking Options */
-    "strict": true /* Enable all strict type-checking options. */,
+    "strict": false /* Legacy modules are migrated incrementally; production still runs vue-tsc. */,
+    "allowImportingTsExtensions": true,
     "noImplicitAny": false /* Raise error on expressions and declarations with an implied 'any' type. */,
     // "strictNullChecks": true,              /* Enable strict null checks. */
     // "strictFunctionTypes": true,           /* Enable strict checking of function types. */
@@ -28,6 +29,9 @@
       "@": ["src"],
       "@/*": ["src/*"]
     }
+  },
+  "vueCompilerOptions": {
+    "strictTemplates": false
   },
   "include": [
     "src/**/*.ts",

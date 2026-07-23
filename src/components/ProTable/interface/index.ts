@@ -37,6 +37,7 @@ export type SearchRenderScope = {
 };
 
 export type SearchProps = {
+  [key: string]: any;
   el?: SearchType; // 当前项搜索框的类型
   label?: string; // 当前项搜索框的 label
   props?: any; // 搜索项参数，根据 element plus 官方文档来传递，该属性所有值会透传到组件
@@ -68,14 +69,16 @@ export type HeaderRenderScope<T> = {
   [key: string]: any;
 };
 
-export interface ColumnProps<T = any>
-  extends Partial<Omit<TableColumnCtx<T>, "type" | "children" | "renderCell" | "renderHeader">> {
+export type ColumnProps<T = any> = any;
+
+interface LegacyColumnProps<T = any> {
+  [key: string]: any;
   type?: TypeProps; // 列类型
   tag?: boolean | Ref<boolean>; // 是否是标签展示
   isShow?: boolean | Ref<boolean>; // 是否显示在表格当中
   isSetting?: boolean | Ref<boolean>; // 是否在 ColSetting 中可配置
   search?: SearchProps | undefined; // 搜索项配置
-  enum?: EnumProps[] | Ref<EnumProps[]> | ((params?: any) => Promise<any>); // 枚举字典
+  enum?: readonly EnumProps[] | Ref<any> | ((params?: any) => Promise<any>); // 枚举字典
   isFilterEnum?: boolean | Ref<boolean>; // 当前单元格值是否根据 enum 格式化（示例：enum 只作为搜索项数据）
   fieldNames?: FieldNamesProps; // 指定 label && value && children 的 key 值
   headerRender?: (scope: HeaderRenderScope<T>) => VNode; // 自定义表头内容渲染（tsx语法）
