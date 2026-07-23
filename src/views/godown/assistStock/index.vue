@@ -1,0 +1,3 @@
+<template><div class="stock-module"><el-tabs v-model="tab"><el-tab-pane label="库存统计" name="total"/><el-tab-pane label="库存流水" name="flow"/></el-tabs><StockTotal v-if="tab==='total'" item-type="ASSIST" fixed-warehouse-code="ASSIST" :show-switcher="false"/><StockFlow v-else item-type="ASSIST" fixed-warehouse-code="ASSIST" :show-switcher="false"/></div></template>
+<script setup lang="ts">import{ref}from"vue";import StockTotal from"@/views/godown/total/index.vue";import StockFlow from"@/views/godown/flow/index.vue";const tab=ref("total");</script>
+<style scoped>.stock-module{display:flex;flex-direction:column;height:100%;min-height:0}.stock-module>:last-child{flex:1;min-height:0}</style>

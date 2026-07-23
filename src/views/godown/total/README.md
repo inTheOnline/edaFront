@@ -18,6 +18,8 @@
 - 如果后续要扩展库存预警、周转天数等能力，可继续在这个目录内演进。
 
 ## 后端 API
+- V2 页面使用 `GET /stock/v2/warehouses` 和 `POST /stock/v2/total/page`。
+- 产品类仓库从数据库动态生成切换项；`DUAL` 展示未检/已检，`NORMAL` 展示总数量。
 - getTotal => POST /godown/getTotal
 - getModel => 如果从页面导出逻辑延伸，实际仍复用 flow/godown 相关导出方式
 

@@ -15,7 +15,13 @@
 - dataCallback 统一把 records/total 适配给表格。
 - 批量导入和导出分别走 ImportExcel 与 useDownload。
 
-## 后端 API
+## V2 后端 API
+- 仓库分段来自 `GET /stock/v2/warehouses`，新增产品类仓库只需新增数据库配置。
+- 流水类型来自 `GET /stock/v2/flowTypes`。
+- 分页、手工新增/修改/红冲删除走 `/stock/v2/flow/page` 和 `/stock/v2/manual`。
+- 业务自动流水只允许查看，手工流水允许修改和红冲删除。
+
+## 旧版后端 API（V2 关闭时旧页面兼容使用）
 - getFlow => POST /godown/getFlow
 - addFlow => POST /godown/addFlow
 - editFlow => PUT /godown/editFlow

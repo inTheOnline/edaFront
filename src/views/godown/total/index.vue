@@ -1,175 +1,57 @@
 <template>
-  <div class="mater-container">
-    <div class="table-panel">
-      <ProTable
-        class="main-table"
-        :columns="columns"
-        :request-api="getTotal"
-        :dataCallback="dataCallback"
-        :pagination="true"
-        :tool-button="['refresh', 'setting', 'search']"
-        row-key="id"
-        title="Outgoing-Form"
-        ref="proTableRef"
-        striped=true
-        :search-col="{ xs: 2, sm: 2, md: 3, lg: 3, xl: 4 }"
-      >
-        <template #tableHeader="scope">
-          <!-- 客户单选下拉框 -->
-          <el-select
-            v-model="cust"
-            placeholder="请选择客户"
-            style="width: 200px; margin-right: 10px;"
-            clearable 
-          >
-            <!-- 客户选项列表（可根据实际接口返回数据循环渲染） -->
-            <el-option
-              v-for="customer in dictStore.dictMap['cust']"
-              :key="customer.label"
-              :label="customer.label"
-              :value="customer.value"
-            />
-          </el-select>
-          <el-button type="primary" :icon="Download" @click="downloadFile">导出仓库数据</el-button>
-        </template>
-        <!-- 2.表格数据操作按钮区域 -->
-        <template #operation="scope">
-          <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">详情</el-button>
-        </template>
-      </ProTable>
+  <div class="stock-page">
+    <div v-if="showSwitcher" class="warehouse-switcher">
+      <el-segmented v-model="warehouseCode" :options="warehouseOptions" @change="proTableRef?.reset()" />
     </div>
-    <UserDrawer ref="drawerRef" />
-    <ImportExcel ref="dialogRef" />
+    <ProTable ref="proTableRef" :columns="columns" :request-api="requestTotal" :dataCallback="dataCallback"
+      :pagination="true" :tool-button="['refresh','setting','search']" row-key="itemId" striped
+      :search-col="{xs:2,sm:2,md:3,lg:3,xl:4}">
+      <template #tableHeader>
+        <el-button type="primary" :icon="Download" @click="exportCurrent">导出当前页库存</el-button>
+      </template>
+      <template #operation="scope"><el-button type="primary" link :icon="View" @click="showDetail(scope.row)">详情</el-button></template>
+    </ProTable>
+    <el-drawer v-model="detailVisible" title="库存详情" size="420px">
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="仓库">{{ currentWarehouse?.name }}</el-descriptions-item>
+        <el-descriptions-item label="物料编号">{{ detail.itemCode || detail.materNum }}</el-descriptions-item>
+        <el-descriptions-item label="物料名称">{{ detail.itemName || detail.materName }}</el-descriptions-item>
+        <template v-if="dualMode"><el-descriptions-item label="未检数量">{{ detail.readyNumber }}</el-descriptions-item><el-descriptions-item label="已检数量">{{ detail.stockNumber }}</el-descriptions-item></template>
+        <el-descriptions-item v-else label="库存数量">{{ detail.number }}</el-descriptions-item>
+      </el-descriptions>
+    </el-drawer>
   </div>
 </template>
 
-<script lang="ts" setup>
-import { ref, reactive,onMounted,computed } from "vue";
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
+import { Download, View } from "@element-plus/icons-vue";
 import ProTable from "@/components/ProTable/index.vue";
-import ImportExcel from "@/components/ImportExcel/index.vue";
-import { getTotal } from "@/api/modules/godown/flow";
-import { useDownload } from "@/hooks/useDownload";
-import UserDrawer from "./components/UserDrawer.vue";
-import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh,Edit } from "@element-plus/icons-vue"; 
-import { ElMessage, ElMessageBox } from "element-plus";
-import { ColumnProps } from "@/components/ProTable/interface";
-import {useAuthStore} from '@/stores/modules/auth'
-import {useDictStore} from '@/stores/modules/dict'
-import SvgIcon from "@/components/SvgIcon/index.vue";
-import dayjs from "dayjs";
-const dictStore = useDictStore()
-const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
-const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
-const cust = ref(null);
-const dataCallback = (data) => {    // 数据回调
-    return {
-      list: data.records,
-      total: data.total
-    };
-};
-onMounted(async () => {
-  await dictStore.loadDicts(['cust','user','mater','project']);
-});
-const columns: ColumnProps[] = reactive([
-  { type: "selection", label: "选择", prop: "id", align: "center" },
-  { type: "index", label: "序号", width : 60, align: "center",
-  index : (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1 },
-  {
-    label: "客户",
-    prop: "cust",
-    enum: computed(() => dictStore.dictMap["cust"]),
-    fieldNames: { label: "label", value: "value" },
-    search: {
-      el: "select",
-      enum: computed(() => dictStore.dictMap['cust']),
-      fieldNames: { label: "label", value: "value" },
-      props: { 
-        filterable: true, 
-        placeholder: "请选择客户",
-    },
-    width: 100,
-    },
-  },
-  {
-    label: "产品编号",
-    prop: "materNum",
-    search: {
-      el: "input",
-      props: { 
-        filterable: true, 
-        placeholder: "输入产品编号或名称搜索",
-    },
-    },
-    minWidth: 150,
-    align: "center",
-  },
-  {
-    label: "产品名称",
-    prop: "materName",
-    search: {
-      el: "input",
-      props: { 
-        filterable: true, 
-        placeholder: "输入产品名称搜索",
-      },
-    },
-    minWidth: 300,
-    align: "center",
-  },
-  {
-    label: "未检数量(pcs)",
-    prop: "readyNumber",
-    width: 100,
-  },
-  {
-    label: "库存数量(pcs)",
-    prop: "stockNumber",
-    width: 100,
-  },
-  {
-    label: "备注",
-    prop: "remark",
-    minWidth: 250,
-  },
-  { prop: "operation", label: "操作", fixed: "right", width: 100 },
+import { getStockTotal, getWarehouses, StockWarehouse } from "@/api/modules/stock";
+import { useDictStore } from "@/stores/modules/dict";
+
+const props=withDefaults(defineProps<{itemType?:"PRODUCT"|"RAW"|"ASSIST";fixedWarehouseCode?:string;showSwitcher?:boolean}>(),{itemType:"PRODUCT",fixedWarehouseCode:"",showSwitcher:true});
+const dictStore=useDictStore();
+const proTableRef=ref<any>(),warehouses=ref<StockWarehouse[]>([]),warehouseCode=ref("");
+const currentWarehouse=computed(()=>warehouses.value.find(item=>item.code===warehouseCode.value));
+const warehouseOptions=computed(()=>warehouses.value.map(item=>({label:item.name,value:item.code})));
+const dualMode=computed(()=>currentWarehouse.value?.summaryMode==="DUAL");
+const columns=computed<any[]>(()=>[
+  {type:"index",label:"序号",width:60,align:"center",index:(i:number)=>(proTableRef.value?.pageable.pageNum-1)*proTableRef.value?.pageable.pageSize+i+1},
+  ...(props.itemType==="PRODUCT"?[{label:"客户",prop:"custId",width:130,enum:dictStore.dictMap.cust,search:{el:"select"}}]:[]),
+  {label:"物料编号",prop:dualMode.value?"materNum":"itemCode",minWidth:160,search:{el:"input",key:"keyword",props:{placeholder:"编号或名称"}}},
+  {label:"物料名称",prop:dualMode.value?"materName":"itemName",minWidth:260},
+  ...(dualMode.value?[{label:"未检数量",prop:"readyNumber",width:130},{label:"已检数量",prop:"stockNumber",width:130}]:[{label:"库存数量",prop:"number",width:140}]),
+  {prop:"operation",label:"操作",fixed:"right",width:100}
 ]);
-
-// 打开抽屉
-const openDrawer = async (title: string, row: Object = {}) => {
-  const params = {
-    title,
-    isView: title === "查看",
-    row: { ...row },
-    api: title === "新增" ? addFlow : title === "编辑" ? editFlow : undefined,
-    getTableList: proTableRef.value?.getTableList,
-    materialList: dictStore.dictMap['mater'] // 传递物料列表供下拉选择使用
-  };
-  drawerRef.value?.acceptParams(params);
-};
-// 导出仓库列表
-const downloadFile = async () => {
-  ElMessageBox.confirm("确认导出用户数据?", "温馨提示", { type: "warning" }).then(() =>
-    useDownload(getModel, "仓库列表", proTableRef.value?.searchParam)
-  );
-};
-
+const requestTotal=(params:any)=>getStockTotal(warehouseCode.value,params);
+const dataCallback=(data:any)=>({list:data.records,total:data.total});
+const detailVisible=ref(false),detail=ref<any>({});
+const showDetail=(row:any)=>{detail.value=row;detailVisible.value=true};
+const exportCurrent=()=>{const rows=proTableRef.value?.tableData||[];const header=dualMode.value?["物料编号","物料名称","未检数量","已检数量"]:["物料编号","物料名称","库存数量"];const body=rows.map((r:any)=>dualMode.value?[r.materNum,r.materName,r.readyNumber,r.stockNumber]:[r.itemCode,r.itemName,r.number]);const csv="\ufeff"+[header,...body].map(row=>row.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`${currentWarehouse.value?.name||"仓库"}统计.csv`;a.click();URL.revokeObjectURL(a.href)};
+onMounted(async()=>{if(props.itemType==="PRODUCT")await dictStore.loadDicts(["cust"]);warehouses.value=(await getWarehouses(props.itemType)).data;warehouseCode.value=props.fixedWarehouseCode||warehouses.value[0]?.code||""});
 </script>
 
-<style lang="scss" scoped>
-.expand_div{
-  margin: 0px 200px 10px 200px;
-  border-radius: 10px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
-}
-.mater-container,
-.table-panel{
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-.main-table{
-  height: 100%;
-  min-height: 0;
-}
+<style scoped lang="scss">
+.stock-page{display:flex;flex-direction:column;height:100%;min-height:0}.warehouse-switcher{padding:12px 16px;background:var(--el-bg-color);border-bottom:1px solid var(--el-border-color-lighter)}.stock-page :deep(.ProTable){flex:1;min-height:0}
 </style>
