@@ -3,7 +3,7 @@
     <div v-if="showSwitcher" class="warehouse-switcher">
       <el-segmented v-model="warehouseCode" :options="warehouseOptions" @change="changeWarehouse" />
     </div>
-    <ProTable ref="proTableRef" :columns="columns" :request-api="requestFlow" :dataCallback="dataCallback"
+    <ProTable v-if="warehouseCode" ref="proTableRef" :columns="columns" :request-api="requestFlow" :dataCallback="dataCallback"
       :pagination="true" :tool-button="['refresh', 'setting', 'search']" row-key="lineId" striped
       :search-col="{ xs: 2, sm: 2, md: 3, lg: 3, xl: 4 }" @row-click="selectRow">
       <template #tableHeader="scope">
