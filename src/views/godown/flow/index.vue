@@ -43,7 +43,7 @@
         </el-form-item>
         <el-form-item label="数量" prop="quantity"><el-input-number v-model="form.quantity" :min="0.0001" :precision="4" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
-        <el-form-item v-if="viewOnly && form.sourceType" label="来源"><el-tag effect="plain">{{ form.sourceType }}</el-tag></el-form-item>
+        <el-form-item v-if="viewOnly && form.sourceType" label="来源"><el-tag effect="plain">{{ getStockSourceName(form.sourceType) }}</el-tag></el-form-item>
       </el-form>
       <template #footer><el-button @click="editorVisible=false">取消</el-button><el-button v-if="!viewOnly" type="primary" @click="save">保存</el-button></template>
     </el-drawer>
@@ -72,6 +72,7 @@ import ProTable from "@/components/ProTable/index.vue";
 import StatisticsBar from "@/components/My/StatisticsBar/index.vue";
 import { useDictStore } from "@/stores/modules/dict";
 import { addStockFlow, addStockFlowBatch, deleteStockFlow, editStockFlow, getAssistOptions, getFlowTypes, getRawOptions, getStockFlow, getWarehouses, StockFlowType, StockWarehouse } from "@/api/modules/stock";
+import { getStockSourceName } from "@/enums/stockEnum";
 
 const props = withDefaults(defineProps<{ itemType?: "PRODUCT"|"RAW"|"ASSIST"; fixedWarehouseCode?: string; showSwitcher?: boolean }>(), { itemType: "PRODUCT", fixedWarehouseCode: "", showSwitcher: true });
 const dictStore = useDictStore();
@@ -96,7 +97,7 @@ const columns:any[] = reactive([
   { label:"流水类型", prop:"flowTypeCode", minWidth:140, isFilterEnum:false, search:{el:"select"}, enum:flowTypes, fieldNames:{label:"name",value:"code"} },
   { label:"方向", prop:"direction", width:80, render:({row}:any)=>row.direction === "IN" ? "入库" : "出库" },
   { label:"数量", prop:"quantity", width:110 },
-  { label:"来源", prop:"sourceType", minWidth:140 },
+  { label:"来源", prop:"sourceType", minWidth:140, render:({row}:any)=>getStockSourceName(row.sourceType) },
   { label:"备注", prop:"remark", minWidth:180 },
   { prop:"operation", label:"操作", fixed:"right", width:230 }
 ]);
@@ -115,7 +116,7 @@ const batchVisible=ref(false),batchDate=ref(dayjs().format("YYYY-MM-DD")),batchF
 const addBatchRow=()=>batchRows.value.push({sourceItemId:undefined,quantity:1,remark:""});
 const openBatch=()=>{batchRows.value=[];addBatchRow();batchVisible.value=true};
 const saveBatch=async()=>{if(!batchFlowType.value||batchRows.value.some(r=>!r.sourceItemId||!r.quantity))return ElMessage.warning("请完整填写流水类型、物料和数量");await addStockFlowBatch(batchRows.value.map(row=>({warehouseCode:warehouseCode.value,itemType:props.itemType,flowTypeCode:batchFlowType.value,bizDate:batchDate.value,...row})));ElMessage.success("批量添加成功");batchVisible.value=false;proTableRef.value?.getTableList()};
-const exportCurrent=()=>{const rows=proTableRef.value?.tableData||[];const values=[["日期","物料编号","物料名称","流水类型","方向","数量","来源","备注"],...rows.map((r:any)=>[r.bizDate,r.itemCode,r.itemName,r.flowTypeName,r.direction==="IN"?"入库":"出库",r.quantity,r.sourceType,r.remark])];const csv="\ufeff"+values.map((r:any[])=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`${currentWarehouse.value?.name||"仓库"}流水.csv`;a.click();URL.revokeObjectURL(a.href)};
+const exportCurrent=()=>{const rows=proTableRef.value?.tableData||[];const values=[["日期","物料编号","物料名称","流水类型","方向","数量","来源","备注"],...rows.map((r:any)=>[r.bizDate,r.itemCode,r.itemName,r.flowTypeName,r.direction==="IN"?"入库":"出库",r.quantity,getStockSourceName(r.sourceType),r.remark])];const csv="\ufeff"+values.map((r:any[])=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`${currentWarehouse.value?.name||"仓库"}流水.csv`;a.click();URL.revokeObjectURL(a.href)};
 const loadMaterials=async()=>{if(props.itemType==="PRODUCT"){await dictStore.loadDicts(["mater"]);materialOptions.value=dictStore.dictMap.mater||[]}else{const res=props.itemType==="RAW"?await getRawOptions():await getAssistOptions();materialOptions.value=(res.data.records||[]).map((item:any)=>({value:item.id,num:item.rawNum||item.code||item.num,label:item.rawName||item.name||item.label}))}};
 const loadWarehouse=async()=>{warehouses.value=(await getWarehouses(props.itemType)).data;warehouseCode.value=props.fixedWarehouseCode||warehouses.value[0]?.code||"";if(warehouseCode.value)flowTypes.value=(await getFlowTypes(warehouseCode.value)).data};
 const changeWarehouse=async()=>{flowTypes.value=(await getFlowTypes(warehouseCode.value)).data;proTableRef.value?.reset()};
