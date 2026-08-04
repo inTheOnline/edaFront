@@ -41,7 +41,7 @@
             <el-option v-for="item in flowTypes" :key="item.code" :value="item.code" :label="item.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="数量" prop="quantity"><el-input-number v-model="form.quantity" :min="0.0001" :precision="4" /></el-form-item>
+        <el-form-item label="数量" prop="quantity"><el-input-number v-model="form.quantity" :min="0.0001" :precision="4" :controls="false" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
         <el-form-item v-if="viewOnly && form.sourceType" label="来源"><el-tag effect="plain">{{ getStockSourceName(form.sourceType) }}</el-tag></el-form-item>
       </el-form>
@@ -53,7 +53,7 @@
         <el-form-item label="流水类型"><el-select v-model="batchFlowType" style="width:200px"><el-option v-for="item in flowTypes" :key="item.code" :value="item.code" :label="item.name" /></el-select></el-form-item></el-form>
       <el-table :data="batchRows" border>
         <el-table-column label="物料" min-width="260"><template #default="{row}"><el-select v-model="row.sourceItemId" filterable style="width:100%"><el-option v-for="item in materialOptions" :key="item.value" :value="item.value" :label="`${item.num} ${item.label}`" /></el-select></template></el-table-column>
-        <el-table-column label="数量" width="170"><template #default="{row}"><el-input-number v-model="row.quantity" :min="0.0001" /></template></el-table-column>
+        <el-table-column label="数量" width="170"><template #default="{row}"><el-input-number v-model="row.quantity" :min="0.0001" :controls="false" /></template></el-table-column>
         <el-table-column label="备注"><template #default="{row}"><el-input v-model="row.remark" /></template></el-table-column>
         <el-table-column width="70"><template #default="{$index}"><el-button link type="danger" @click="batchRows.splice($index,1)">删除</el-button></template></el-table-column>
       </el-table>
