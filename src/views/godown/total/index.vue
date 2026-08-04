@@ -39,8 +39,8 @@ const dualMode=computed(()=>currentWarehouse.value?.summaryMode==="DUAL");
 const columns=computed<any[]>(()=>[
   {type:"index",label:"序号",width:60,align:"center",index:(i:number)=>(proTableRef.value?.pageable.pageNum-1)*proTableRef.value?.pageable.pageSize+i+1},
   ...(props.itemType==="PRODUCT"?[{label:"客户",prop:"custId",width:130,enum:dictStore.dictMap.cust,search:{el:"select"}}]:[]),
-  {label:"物料编号",prop:dualMode.value?"materNum":"itemCode",minWidth:160,search:{el:"input",key:"keyword",props:{placeholder:"编号或名称"}}},
-  {label:"物料名称",prop:dualMode.value?"materName":"itemName",minWidth:260},
+  {label:"物料编号",prop:props.itemType==="PRODUCT"?"materNum":"itemCode",minWidth:160,search:{el:"input",key:"keyword",props:{placeholder:"编号或名称"}}},
+  {label:"物料名称",prop:props.itemType==="PRODUCT"?"materName":"itemName",minWidth:260},
   ...(dualMode.value?[{label:"未检数量",prop:"readyNumber",width:130},{label:"已检数量",prop:"stockNumber",width:130}]:[{label:"库存数量",prop:"number",width:140}]),
   {prop:"operation",label:"操作",fixed:"right",width:100}
 ]);
@@ -48,7 +48,7 @@ const requestTotal=(params:any)=>getStockTotal(warehouseCode.value,params);
 const dataCallback=(data:any)=>({list:data.records,total:data.total});
 const detailVisible=ref(false),detail=ref<any>({});
 const showDetail=(row:any)=>{detail.value=row;detailVisible.value=true};
-const exportCurrent=()=>{const rows=proTableRef.value?.tableData||[];const header=dualMode.value?["物料编号","物料名称","未检数量","已检数量"]:["物料编号","物料名称","库存数量"];const body=rows.map((r:any)=>dualMode.value?[r.materNum,r.materName,r.readyNumber,r.stockNumber]:[r.itemCode,r.itemName,r.number]);const csv="\ufeff"+[header,...body].map(row=>row.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`${currentWarehouse.value?.name||"仓库"}统计.csv`;a.click();URL.revokeObjectURL(a.href)};
+const exportCurrent=()=>{const rows=proTableRef.value?.tableData||[];const header=dualMode.value?["物料编号","物料名称","未检数量","已检数量"]:["物料编号","物料名称","库存数量"];const body=rows.map((r:any)=>dualMode.value?[r.materNum,r.materName,r.readyNumber,r.stockNumber]:[props.itemType==="PRODUCT"?r.materNum:r.itemCode,props.itemType==="PRODUCT"?r.materName:r.itemName,r.number]);const csv="\ufeff"+[header,...body].map(row=>row.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`${currentWarehouse.value?.name||"仓库"}统计.csv`;a.click();URL.revokeObjectURL(a.href)};
 onMounted(async()=>{if(props.itemType==="PRODUCT")await dictStore.loadDicts(["cust"]);warehouses.value=(await getWarehouses(props.itemType)).data;warehouseCode.value=props.fixedWarehouseCode||warehouses.value[0]?.code||""});
 </script>
 
