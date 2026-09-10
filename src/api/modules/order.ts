@@ -1,6 +1,6 @@
 import http from "@/api";
 import { ReqPageT,ResultData,ResPage } from "@/api/interface/index";
-import { Order } from "@/api/interface/order";
+import { Order, OrderMaterDetail } from "@/api/interface/order";
 //params分页请求参数
 export const getOrderAll = (params: ReqPageT<any>) => {
   return http.post<any>(`/order/all`, params);
@@ -31,6 +31,9 @@ export const getAboutById = (id:number) => {
 };
 export const editOrder = (order:Order) => {
   return http.post<any>(`/order/editOrder`, order);
+};
+export const editOrderMater = (orderMater: OrderMaterDetail) => {
+  return http.put<any>(`/order/editMater`, orderMater);
 };
 export const reset = () => {
   return http.get<any>(`/order/reset`);

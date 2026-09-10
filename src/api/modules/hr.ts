@@ -1,6 +1,19 @@
 import http from "@/api";
-import { ReqPage,ResultData,ResPage } from "@/api/interface/index";
-import type { Salary, SalaryChangeLog, SalaryEditRequest, SalaryNorm, SalaryPageParams, Staff, StaffAttachment } from "@/api/interface/hr";
+import { ReqPage,ResPage } from "@/api/interface/index";
+import type {
+  Salary,
+  SalaryChangeLog,
+  SalaryEditRequest,
+  SalaryNorm,
+  SalaryNormChangeLog,
+  SalaryNormEditRequest,
+  SalaryNormLogPageParams,
+  SalaryPageParams,
+  Staff,
+  StaffAttachment,
+  AttendanceAdjustmentRequest,
+  AttendancePage
+} from "@/api/interface/hr";
 export const getAll = (params: ReqPage) => {
   return http.get<ResPage<Staff>>("/hr/staff/all", params);
 }
@@ -34,9 +47,15 @@ export const getCheckModel = (num: string) => {
 export const editStaff = (data:any) => {
   return http.post("/hr/staff/edit",data)
 }
-export const getDateDetails = (year:number,month:number) :ResultData =>{
+export const getDateDetails = (year:number,month:number) =>{
   return http.get("/hr/check/getDateDetails",{year,month});
 }
+export const getAttendancePage = (params: {
+  year: number; month: number; pageNum: number; pageSize: number;
+  keyword?: string; departmentId?: number; onlyAbnormal?: boolean;
+}) => http.get<AttendancePage>("/hr/check/page", params);
+export const saveAttendanceAdjustment = (data: AttendanceAdjustmentRequest) =>
+  http.post("/hr/check/adjustment", data);
 export const getMonths = () =>{
   return http.get("/hr/check/getMonths",{});
 }
@@ -70,11 +89,15 @@ export const downloadStaffAttachment = (id: number) => {
 export const getSalaryNormPage = (params: ReqPage & Partial<SalaryNorm>) => http.post<ResPage<SalaryNorm>>("/hr/salaryNorm/page", params);
 export const getSalaryNorm = (id: number) => http.get<SalaryNorm>("/hr/salaryNorm/get", { id });
 export const getSalaryNormByStaff = (staffId: number) => http.get<SalaryNorm>("/hr/salaryNorm/getByStaff", { staffId });
-export const addSalaryNorm = (data: SalaryNorm) => http.post("/hr/salaryNorm/add", data);
-export const editSalaryNorm = (data: SalaryNorm) => http.post("/hr/salaryNorm/edit", data);
-export const deleteSalaryNorm = (id: number) => http.delete("/hr/salaryNorm/delete", { id });
+export const editSalaryNorm = (data: SalaryNormEditRequest) => http.post("/hr/salaryNorm/edit", data);
+export const getSalaryNormLogPage = (params: SalaryNormLogPageParams) =>
+  http.post<ResPage<SalaryNormChangeLog>>("/hr/salaryNorm/changeLog/page", params);
+export const getSalaryNormLogList = (salaryNormId: number) =>
+  http.get<SalaryNormChangeLog[]>("/hr/salaryNorm/changeLog/list", { salaryNormId });
 export const getSalaryPage = (params: SalaryPageParams) => http.post<ResPage<Salary>>("/hr/salary/page", params);
 export const calculateSalary = (params: FormData) => http.download("/hr/salary/calculate", params, { cancel: false });
+export const getSalaryTemplate = () =>
+  http.service.get<Blob, Blob>("/hr/salary/template", { responseType: "blob" });
 export const getSalary = (id: number) => http.get<Salary>("/hr/salary/get", { id });
 export const editSalary = (data: SalaryEditRequest) => http.post("/hr/salary/edit", data);
 export const deleteSalary = (id: number) => http.delete("/hr/salary/delete", { id });

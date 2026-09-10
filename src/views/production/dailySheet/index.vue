@@ -14,9 +14,11 @@
         striped
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
         :virtualized="true"
+        :row-class-name="({ row }) => row.effStatus === 'PENDING' ? 'eff-pending' : ''"
         @row-click="handleRowClick"
       >
         <template #tableHeader="scope">
+          <el-button type="warning" plain @click="showPending">只看待核实</el-button>
           <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增</el-button>
           <el-button type="primary" :icon="Upload" plain @click="batchAdd">批量添加</el-button>
           <el-button type="primary" :icon="Upload" plain @click="importAdd">导入记录</el-button>
@@ -25,7 +27,7 @@
             type="danger"
             :icon="Delete"
             plain
-            @click="deleteSelected(scope.selectedListIds)"
+            @click="deleteSelected(scope.selectedListIds.map(Number))"
             :disabled="!scope.isSelected"
           >
             批量删除
@@ -55,13 +57,17 @@
             <el-button type="primary" plain @click="cancelSelect">取消选择</el-button>
           </div>
         </template>
+        <template #effStatus="{ row }"><el-tag :type="effTagTypes[row.effStatus] || 'info'" :class="`eff-tag-${row.effStatus}`">{{ effStatus[row.effStatus] || row.effStatus }}</el-tag></template>
+        <template #effReason="{ row }">{{ row.effStatus === 'NORMAL' ? '' : row.effReason }}</template>
         <template #operation="scope">
+          <el-button v-if="auth.isExistence('production:eff:view')" type="primary" link @click.stop="effDrawer?.open(scope.row.id)">{{ ['PENDING', 'UNKNOWN', 'INVALID'].includes(scope.row.effStatus) ? '核实' : '效率依据' }}</el-button>
           <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">查看</el-button>
           <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', scope.row)">编辑</el-button>
           <el-button type="primary" link :icon="Delete" @click="deleteRecord(scope.row.id)">删除</el-button>
         </template>
       </ProTable>
     </div>
+    <EffReviewDrawer ref="effDrawer" @changed="proTableRef?.getTableList()" />
     <ProductionDrawer ref="drawerRef" />
     <BatchAddDialog ref="batchDialogRef" />
     <ImportExcel ref="dialogRef" />
@@ -94,6 +100,17 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import { useDictStore } from "@/stores/modules/dict";
 
+import EffReviewDrawer from './components/EffReviewDrawer.vue';
+import { effStatus } from '@/api/modules/efficiency';
+import type { TagProps } from 'element-plus';
+const effTagTypes: Record<string, TagProps['type']> = {
+  NORMAL: 'success', VERIFIED: 'success', CORRECTED: 'success',
+  INSUFFICIENT: 'primary', PENDING: 'warning', UNKNOWN: 'warning', INVALID: 'danger'
+};
+import { useAuthStore } from '@/stores/modules/auth';
+const auth = useAuthStore();
+const effDrawer = ref<InstanceType<typeof EffReviewDrawer>>();
+const showPending = () => { if (!proTableRef.value) return; proTableRef.value.searchParam.effStatus = 'PENDING'; proTableRef.value.search(); };
 const dictStore = useDictStore();
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof ProductionDrawer> | null>(null);
@@ -111,7 +128,7 @@ const dataCallback = (data) => {
 };
 const add = async(params:any) =>{
   await addProduction(params);
-  proTableRef.value?.reset;
+  proTableRef.value?.getTableList();
 }
 // 🔥 新增：点击行任意位置 选中/取消
 const handleRowClick = async (row: any) => {
@@ -156,7 +173,7 @@ const timeTotal = computed(() =>
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
   { type: "index", label: "序号", width : 60, align: "center",
-  index : (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1 },
+  index : (index) => ((proTableRef.value?.pageable.pageNum || 1) - 1) * (proTableRef.value?.pageable.pageSize || 10) + index + 1 },
   {
     label: "日期",
     prop: "date",
@@ -271,20 +288,22 @@ const columns: ColumnProps[] = reactive([
     },
     minWidth: 150,
   },
-  { prop: "operation", label: "操作", fixed: "right", width: 220 },
+  { prop: "effStatus", label: "效率状态", width: 130, enum: Object.entries(effStatus).map(([value,label]) => ({ value,label })), search: { el: "select" } },
+  { prop: "effReason", label: "效率提示原因", minWidth: 280 },
+  { prop: "operation", label: "操作", fixed: "right", width: 295 },
 ]);
 
 // 打开抽屉（新增/编辑/查看）
-const openDrawer = async (title: string, row: Object = {}) => {
+const openDrawer = async (title: string, row: Record<string, any> = {}) => {
   const params = {
     title,
     isView: title === "查看",
-    row: { ...row },
+    row: { date: "", materId: null, process: "", machine: "", hours: 0, qty: 1, ...row },
     api: title === "新增" ? add : title === "编辑" ? editProduction : undefined,
     getTableList: proTableRef.value?.getTableList,
     // 传递字典数据给抽屉组件
-    materialList: materEnum || [],
-    staffList: staffEnum || [],
+    materialList: materEnum.value || [],
+    staffList: staffEnum.value || [],
   };
   drawerRef.value?.acceptParams(params);
 };
@@ -335,7 +354,7 @@ const batchDialogRef = ref<InstanceType<typeof BatchAddDialog> | null>(null);
 
 const batchAdd = async () => {
   const params = {
-    materList: materEnum.value || [],
+    materList: (materEnum.value || []).map(m => ({ ...m, value: Number(m.value) })),
     staffList: staffEnum.value || [],
     getTableList: proTableRef.value?.getTableList
   };
@@ -378,4 +397,8 @@ const batchAdd = async () => {
 :deep(.el-table__row) {
   cursor: pointer;
 }
+:deep(.el-table .eff-pending) { --el-table-tr-bg-color: #fff4cc; --el-table-row-hover-bg-color: #ffebb0; }
+.eff-tag-INSUFFICIENT { --el-tag-text-color: #2563eb; --el-tag-bg-color: #eff6ff; --el-tag-border-color: #bfdbfe; }
+.eff-tag-CORRECTED { --el-tag-text-color: #0f766e; --el-tag-bg-color: #f0fdfa; --el-tag-border-color: #99f6e4; }
+.eff-tag-PENDING { --el-tag-text-color: #856000; --el-tag-bg-color: #fff8cf; --el-tag-border-color: #e8cc60; }
 </style>

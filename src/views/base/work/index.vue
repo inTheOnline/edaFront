@@ -14,6 +14,7 @@
       >
         <template #tableHeader="scope">
           <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增工艺</el-button>
+          <el-button type="success" plain @click="detailDialogRef?.open()">小工艺管理</el-button>
           <el-button
             type="danger"
             :icon="Delete"
@@ -27,6 +28,7 @@
       </ProTable>
     </div>
     <UserDrawer ref="drawerRef" />
+    <WorkDetailDialog ref="detailDialogRef" />
   </div>
 </template>
 
@@ -35,12 +37,14 @@ import { ref, reactive, computed, toRefs } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import { getAllWork,addWork,delectWorks } from "@/api/modules/work";
 import UserDrawer from "@/views/base/work/components/UserDrawer.vue";
+import WorkDetailDialog from "@/views/base/work/components/WorkDetailDialog.vue";
 import { CirclePlus, Delete } from "@element-plus/icons-vue"; 
 import { ElMessage } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
+const detailDialogRef = ref<InstanceType<typeof WorkDetailDialog> | null>(null);
 const dataCallback = (data) => {    // 数据回调
     return {
       list: data.records,

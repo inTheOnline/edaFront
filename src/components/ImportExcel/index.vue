@@ -83,10 +83,11 @@ const downloadTemp = () => {
 const uploadExcel = async (param: UploadRequestOptions) => {
   let excelFormData = new FormData();
   excelFormData.append("file", param.file);
-  excelFormData.append("isCover", isCover.value as unknown as Blob);
-  await parameter.value.importApi!(excelFormData);
+  excelFormData.append("isCover", String(isCover.value));
+  const result = await parameter.value.importApi!(excelFormData);
   parameter.value.getTableList && parameter.value.getTableList();
   dialogVisible.value = false;
+  return result;
 };
 
 /**
@@ -132,10 +133,14 @@ const excelUploadError = () => {
 };
 
 // 上传成功提示
-const excelUploadSuccess = () => {
+const excelUploadSuccess = (response: any) => {
+  const result = response?.data;
+  const message = result && ["added", "updated", "skipped"].every(key => typeof result[key] === "number")
+    ? `新增 ${result.added} 条，更新 ${result.updated} 条，跳过 ${result.skipped} 条`
+    : `批量添加${parameter.value.title}成功！`;
   ElNotification({
     title: "温馨提示",
-    message: `批量添加${parameter.value.title}成功！`,
+    message,
     type: "success"
   });
 };

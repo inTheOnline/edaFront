@@ -12,6 +12,9 @@
       <el-form-item label="编号" prop="rawNum">
         <el-input v-model="drawerProps.row.rawNum" placeholder="请填入物料编码" clearable></el-input>
       </el-form-item>
+      <el-form-item label="原材料名称" prop="rawName">
+        <el-input v-model="drawerProps.row.rawName" placeholder="请输入原材料名称" clearable></el-input>
+      </el-form-item>
       <el-form-item label="材质" prop="essence">
         <el-input v-model="drawerProps.row.essence" placeholder="请填入材质" clearable></el-input>
       </el-form-item>
@@ -38,7 +41,6 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import { de } from "element-plus/es/locale";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useDictStore } from "@/stores/modules/dict";
 const authStore = useAuthStore();

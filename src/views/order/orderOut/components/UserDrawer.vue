@@ -50,7 +50,6 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { ElLoading, ElMessage, FormInstance } from "element-plus";
 import Mater from "@/views/components/mater/Maters.vue";
-import { de } from "element-plus/es/locale";
 import { useDictStore } from "@/stores/modules/dict";
 const dictStore = useDictStore();
 onMounted(async () => {

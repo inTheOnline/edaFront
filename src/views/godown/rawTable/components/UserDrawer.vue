@@ -27,7 +27,7 @@
       <el-form-item label="理论重量(g)" prop="theoryWeight">
         <el-input v-model="drawerProps.row.theoryWeight" placeholder="请填入理论重量(g)" clearable></el-input>
       </el-form-item>
-      <el-form-item label="价格(元)" prop="price" v-show="authStore.isExistence('price:look')">
+      <el-form-item label="价格(元)" prop="price" v-show="authStore.isExistence('price:view')">
         <el-input v-model="drawerProps.row.price" placeholder="请输入价格信息" clearable></el-input>
       </el-form-item>
       <el-form-item label="客户" prop="custId">
@@ -46,7 +46,6 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive,onMounted} from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import { de } from "element-plus/es/locale";
 import {useAuthStore} from '@/stores/modules/auth'
 import {useDictStore} from '@/stores/modules/dict'
 const authStore = useAuthStore();

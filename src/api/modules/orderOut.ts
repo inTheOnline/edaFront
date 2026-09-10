@@ -17,7 +17,6 @@ export const addOrderOut = (order:Order) => {
 export const getOrderOut = (params: ReqPageT<any>) => {
   return http.post<any>(`/orderOut/all`, params);
 };
-export const addBatchApi = (params: Array<any>) => {
-  console.log(params)
-  return http.post<any>(`/orderOut/addBatchApi`, params);
-}
+export const addBatchApi = (params: Array<any>, syncStock = true) => {
+  return http.post<any>(`/orderOut/addBatchApi`, params, { params: { syncStock } });
+};

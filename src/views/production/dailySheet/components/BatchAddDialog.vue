@@ -80,7 +80,7 @@
         <el-table-column label="工时(H)" prop="hours" align="center" width="100">
           <template #default="{ row }">
             <el-input
-              v-model.number="row.hours"
+              v-model="row.hours"
               type="number"
               min="0"
               placeholder=""
@@ -159,7 +159,7 @@ const form = ref({
     process: string;
     machine: string;
     operatorId: number | string | "";
-    hours: number | null;
+    hours: string | null;
     qty: number | null;
     defect: number | null;
     remark: string;
@@ -221,6 +221,7 @@ const submit = async () => {
 
   const payload = form.value.records.map(r => ({
     ...r,
+    hours: r.hours === null || r.hours === "" ? null : Number(r.hours),
     date: form.value.date
   }));
 

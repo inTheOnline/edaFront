@@ -78,7 +78,7 @@
 
 
         <!-- 数量 -->
-        <el-table-column label="数量" prop="number" align="center" width="100">
+        <el-table-column label="数量" prop="number" align="center" width="50">
           <template #default="{ row }">
             <el-input
               v-model.number="row.number"

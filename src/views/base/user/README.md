@@ -21,6 +21,8 @@
 - `dataCallback` 会缓存当前页用户到 `currentUserList`，再传给 `PermissionEditor` 做角色成员可视化。
 - `extraPermissionGroups` 定义额外权限分类，目前包含 `price` 和 `system`。后续新增权限分类时优先在这里追加配置。
 - `PermissionEditor` 内部用 `formMap` 维护每个角色的 `enabled`、`access`、`extraPermissions`。
+- 路由权限树使用独立勾选模式，父子节点之间不自动级联；后端按 `meta.id` 精确保存每个节点。
+- 弹窗每次打开时都会在 `el-tree` 创建完成后重新写入当前角色权限，避免首次打开显示为空。
 - 权限保存时只提交当前正在编辑的角色，避免未编辑角色被空权限覆盖；`savePower` 会转换为数组并 POST 到后端。
 - 当前角色路由权限为空时会二次确认，避免误清空角色权限。
 - 切换角色、切换权限 Tab、保存权限时不能从 `el-tree.getCheckedKeys()` 反读覆盖当前角色；只能在用户真实勾选、全选、清空时更新 `formMap[role].access`，否则父子节点归一化会导致权限数量变化。
@@ -247,3 +249,6 @@ const submitPurchase = async () => {
 - 导入导出优先复用 ImportExcel 和 useDownload。
 - 删除后通常调用 getTableList 或 reset 刷新表格，保持现有交互一致。
 - 注释使用中文。新增或改动业务结构时，要同步更新本 README.md。
+
+## 生产效率业务权限
+新增productionEfficiency分组，包含查看、核实、更正、标准确认四项 `production:eff:*` 权限。沿用现有按角色保存流程，首次部署仅管理员获授四项权限。

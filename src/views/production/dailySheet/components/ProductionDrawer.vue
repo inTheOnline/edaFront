@@ -22,7 +22,8 @@
 
       <el-form-item label="产品" prop="materId">
         <el-select 
-          v-model="drawerProps.row.materId" 
+          :model-value="drawerProps.row.materId ?? undefined"
+          @update:model-value="drawerProps.row.materId = $event ?? null" 
           placeholder="选择或输入产品" 
           :disabled="drawerProps.isView"
           filterable   
@@ -115,7 +116,7 @@
 
 <script setup lang="ts" name="ProductionDrawer">
 import { ref, reactive } from "vue";
-import { ElMessage, FormInstance } from "element-plus";
+import { ElMessage, FormInstance, FormRules } from "element-plus";
 
 // 定义抽屉组件接收的参数类型
 interface DrawerProps {
@@ -123,7 +124,7 @@ interface DrawerProps {
   title: string;
   row: {
     date: string;
-    materId: number;
+    materId: number | null;
     process: string;
     machine: string;
     operatorId?: number | string;
@@ -132,14 +133,14 @@ interface DrawerProps {
     defect?: number;
     remark?: string;
   };
-  materialList: { value: number; label: string;num: string }[];
+  materialList: { value: number | string; label: string; num?: string }[];
   staffList: { value: number | string; label: string }[];
   api?: (data: any) => Promise<any>;
   getTableList?: () => void;
 }
 
 // 表单验证规则
-const rules = reactive({
+const rules = reactive<FormRules>({
   date: [{ required: true, message: "请选择生产日期", trigger: "change" }],
   materId: [{ required: false, message: "请选择产品", trigger: "change" }],
   process: [{ required: true, message: "请输入工序名", trigger: "blur" }],

@@ -4,5 +4,6 @@ export interface supMap {
 }
 export interface Sup {
   id: number;
+  supNum: string;
   supName: string;
 }

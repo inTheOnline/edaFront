@@ -8,14 +8,26 @@ export interface Production {
   id?: number;
   /** 生产日期（格式：YYYY-MM-DD） */
   date: string;
+  revision?: number;
+  effStatus?: string;
+  effReason?: string;
+  actualRate?: number | null;
+  usualRate?: number | null;
+  recentRate?: number | null;
+  usualDays?: number;
+  recentDays?: number;
+  referenceOk?: number;
+  materNum?: string;
+  materName?: string;
+  operatorName?: string;
   /** 产品ID(关联material.id) */
-  pId: number;
+  materId: number | null;
   /** 工序名 */
   process: string;
   /** 机器序号 */
   machine: string;
   /** 操作员ID(关联staff.id)，允许为null */
-  operator_id?: number | null;
+  operatorId?: number | null;
   /** 生产时间（小时） */
   hours: number;
   /** 生产数量 */

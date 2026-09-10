@@ -11,6 +11,7 @@
         title="Outgoing-Form"
         ref="proTableRef"
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
+        @row-click="handleRowClick"
       >
         <template #tableHeader="scope">
           <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增</el-button>
@@ -26,6 +27,7 @@
           >
             批量删除出货
           </el-button>
+          <SelectionSummary :items="selectionSummary" :disabled="!scope.isSelected" @clear="cancelSelect" />
         </template>
       </ProTable>
     </div>
@@ -38,6 +40,7 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted, computed } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
+import SelectionSummary from "@/components/SelectionSummary/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
 import { getOrderOut, getModel, addMany, deleteMany, addOrderOut } from "@/api/modules/orderOut";
 import { outTypeEnum } from "@/enums/orderOutEnum";
@@ -60,6 +63,10 @@ const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const materEnum = computed(() => dictStore.dictMap["mater"]);
 const userEnum = computed(() => dictStore.dictMap["user"]);
 const orderEnum = computed(() => dictStore.dictMap["order"]);
+const selectedList = computed<any[]>(() => proTableRef.value?.selectedList || []);
+const selectionSummary = computed(() => [
+  { label: "送货数量", value: selectedList.value.reduce((total, row) => total + Number(row.number || 0), 0) },
+]);
 const dataCallback = (data) => {
   // 数据回调
   return {
@@ -75,6 +82,7 @@ const columns: ColumnProps[] = reactive([
   {
     label: "时间",
     prop: "time",
+    width: 150,
   },
   {
     label: "送货单号",
@@ -86,12 +94,11 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 150,
+    width: 200,
   },
   {
     label: "订单号",
-    prop: "orderId",
-    enum: orderEnum,
+    prop: "orderNum",
     search: {
       el: "input",
       tooltip: "输入出货号进行搜索",
@@ -99,7 +106,7 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 150,
+    width: 200,
   },
   {
     label: "产品编号",
@@ -113,7 +120,7 @@ const columns: ColumnProps[] = reactive([
         placeholder: "输入产品编号搜索",
       },
     },
-    width: 150,
+    width: 200,
     align: "center",
   },
   {
@@ -127,7 +134,7 @@ const columns: ColumnProps[] = reactive([
         placeholder: "输入产品名称搜索",
       },
     },
-    width: 250,
+    minWidth: 250,
     align: "center",
   },
   {
@@ -147,7 +154,7 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 80,
+    width: 100,
   },
   {
     label: "状态",
@@ -159,7 +166,9 @@ const columns: ColumnProps[] = reactive([
   {
     label: "备注",
     prop: "remark",
+    minWidth: 200,
   },
+
   // { prop: "operation", label: "操作", fixed: "right", width: 330 },
 ]);
 
@@ -213,6 +222,8 @@ const deleteSelected = async (ids: number[]) => {
     ElMessage.info("已取消删除");
   }
 };
+const handleRowClick = (row: any) => proTableRef.value?.element?.toggleRowSelection(row);
+const cancelSelect = () => proTableRef.value?.element?.clearSelection();
 // 导出出货列表
 const downloadFile = async () => {
   try {

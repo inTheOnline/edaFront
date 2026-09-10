@@ -21,6 +21,9 @@
         <el-form-item label="送货单号">
           <el-input style="width: 220px" v-model="form.num" placeholder="请输入送货单号" />
         </el-form-item>
+        <el-form-item label="同步库存">
+          <el-switch v-model="syncStock" inline-prompt active-text="是" inactive-text="否" />
+        </el-form-item>
         <!-- 模式切换按钮 -->
         <el-button-group style="margin-left: auto">
           <el-button :type="mode === 'withOrder' ? 'primary' : 'default'" @click="mode = 'withOrder'"> 有订单 </el-button>
@@ -133,6 +136,7 @@ import { addBatchApi } from "@/api/modules/orderOut";
 import ItemSelector from "./ItemSelector.vue";
 
 const visible = ref(false);
+const syncStock = ref(true);
 const materList = ref<{ value: number; label: string; num?: string }[]>([]);
 let getTableList: (() => void) | null = null;
 
@@ -249,6 +253,7 @@ const open = (params: { materList?: { value: number; label: string; num?: string
   getTableList = params.getTableList || null;
   form.value.date = getToday();
   form.value.num = "";
+  syncStock.value = true;
   form.value.records = [];
   addRow();
 };
@@ -343,7 +348,7 @@ const submit = async () => {
 
   const loading = ElLoading.service({ text: "提交中..." });
   try {
-    await addBatchApi(payload);
+    await addBatchApi(payload, syncStock.value);
     ElMessage.success("批量添加成功！");
     visible.value = false;
     getTableList?.();

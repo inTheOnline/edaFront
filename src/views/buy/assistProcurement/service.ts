@@ -1,0 +1,11 @@
+import http from "@/api";
+export type AssistKind="requisition"|"purchase"|"receipt";
+export const tablePage=(kind:AssistKind,params:any)=>http.post(`/buy/assist/${kind}/table/page`,params);
+export const itemPage=(kind:AssistKind,params:any)=>http.post(`/buy/assist/${kind}/item/page`,params);
+export const getDocument=(kind:AssistKind,id:number)=>http.get(`/buy/assist/${kind}/${id}`,{});
+export const saveDocument=(kind:AssistKind,data:any)=>data.id?http.put(`/buy/assist/${kind}`,data):http.post(`/buy/assist/${kind}`,data);
+export const deleteDocument=(kind:AssistKind,id:number)=>http.delete(`/buy/assist/${kind}/${id}`);
+export const getAssistOptions=()=>http.get("/buy/assist/mater/options",{});
+export const getSupplierOptions=()=>http.get("/buy/assist/supplier/options",{});
+export const getPurchaseHome=()=>http.get("/buy/assist/home",{});
+export const unwrap=async<T>(promise:Promise<any>):Promise<T>=>{const response=await promise;return(response?.data?.data??response?.data??response)as T};

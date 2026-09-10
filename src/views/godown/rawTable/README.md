@@ -13,6 +13,8 @@
 ## 技术实现
 - 页面依旧采用 ProTable + UserDrawer + ImportExcel 的统一表格模式。
 - 当前主要依赖 getTable 请求台账数据，导出接口使用 getTableModel。
+- 类别字段 `type` 在列表中按 `1 = 板料`、`2 = 卷料` 显示。
+- 抽屉中的价格字段通过 price:view 权限控制显示。
 - 如果以后要把 raw 与 rawTable 合并，先确认后端接口差异。
 
 ## 后端 API

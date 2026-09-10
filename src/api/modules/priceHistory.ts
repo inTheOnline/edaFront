@@ -1,5 +1,5 @@
 import http from "@/api";
-import { ReqPageT, ResultData } from "@/api/interface/index";
+import { ReqPage, ResultData } from "@/api/interface/index";
 
 export interface PriceHistoryRecord {
   id: number;
@@ -17,6 +17,6 @@ export interface PriceHistoryRecord {
   createTime: string;
 }
 
-export const getAll = (params: ReqPageT<Partial<PriceHistoryRecord>>) => {
+export const getAll = (params: ReqPage & Partial<PriceHistoryRecord>) => {
   return http.post<ResultData>("/priceHistory/getAll", params);
 };

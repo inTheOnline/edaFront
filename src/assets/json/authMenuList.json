@@ -182,6 +182,21 @@
           }
         },
         {
+          "path": "/buy/rawRequisition",
+          "name": "rawRequisition",
+          "component": "/buy/rawRequisition/index",
+          "meta": {
+            "icon": "DocumentAdd",
+            "title": "原材料请购",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles":"rawPurchase"
+          }
+        },
+        {
           "path": "/buy/rawPurchase",
           "name": "rawPurchase",
           "component": "/buy/rawPurchase/index",
@@ -194,6 +209,66 @@
             "isAffix": false,
             "isKeepAlive": true,
             "roles":"rawPurchase"
+          }
+        },
+        {
+          "path": "/buy/rawReceipt",
+          "name": "rawReceipt",
+          "component": "/buy/rawReceipt/index",
+          "meta": {
+            "icon": "Finished",
+            "title": "原材料回执",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles":"rawPurchase"
+          }
+        },
+        {
+          "path": "/buy/assistRequisition",
+          "name": "assistRequisition",
+          "component": "/buy/assistRequisition/index",
+          "meta": {
+            "icon": "DocumentAdd",
+            "title": "辅材请购",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles":"assistPurchase"
+          }
+        },
+        {
+          "path": "/buy/assistPurchase",
+          "name": "assistPurchase",
+          "component": "/buy/assistPurchase/index",
+          "meta": {
+            "icon": "ShoppingCart",
+            "title": "辅材采购",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles":"assistPurchase"
+          }
+        },
+        {
+          "path": "/buy/assistReceipt",
+          "name": "assistReceipt",
+          "component": "/buy/assistReceipt/index",
+          "meta": {
+            "icon": "Finished",
+            "title": "辅材回执",
+            "isLink": "",
+            "isHide": false,
+            "isFull": false,
+            "isAffix": false,
+            "isKeepAlive": true,
+            "roles":"assistPurchase"
           }
         }
       ]

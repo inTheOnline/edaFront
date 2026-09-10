@@ -31,6 +31,7 @@ export interface OutformRecord {
   subcId: number;
   subcDate: string;
   subcNum: string;
+  printNum?: string;
   supId: number;
   supName?: string;
   materId?: number | string;
@@ -111,6 +112,46 @@ export interface OutformBatchPayload {
   }>;
 }
 
+export interface OutgoingOrderRow {
+  id?: number;
+  materId: number | string;
+  materNum?: string;
+  materName?: string;
+  workDetailId: number | string;
+  workName?: string;
+  unit: string;
+  number: number;
+  sendPvc: boolean;
+  pvcSpec?: string;
+  pvcQuantity?: number;
+  sendBox: boolean;
+  boxSpec?: string;
+  boxQuantity?: number;
+  smallFrameQuantity?: number;
+  mediumFrameQuantity?: number;
+  spacerQuantity?: number;
+  returnReason?: string;
+  remark?: string;
+}
+
+export interface OutgoingOrder {
+  subcId?: number;
+  subcNum?: string;
+  printNum?: string;
+  subcDate: string;
+  supId: number | string;
+  supName?: string;
+  subcRemark?: string;
+  creatorName?: string;
+  rows: OutgoingOrderRow[];
+}
+
+export interface OutgoingOrderOptions {
+  units: string[];
+  workDetails: Array<{ id: number; workId: number; workName: string; detailName: string }>;
+  packaging: { boxSpec?: string; pvcSpec?: string; materBoxNumber?: number; pvcMaterQty?: number; pvcAssistQty?: number };
+}
+
 export interface OutbackQuery {
   pageNum: number;
   pageSize: number;
@@ -186,6 +227,19 @@ export const getOutItemStateApi = () => {
 export const createOutformBatchApi = (params: OutformBatchPayload) => {
   return http.post<null>("/outgoing/outform/batch-create", params);
 };
+
+export const getOutgoingOrderOptionsApi = (materId?: number | string) =>
+  http.get<OutgoingOrderOptions>("/outgoing/order/options", { materId });
+
+export const getOutgoingOrderApi = (subcId: number) => http.get<OutgoingOrder>(`/outgoing/order/${subcId}`, {});
+
+export const saveOutgoingOrderApi = (params: OutgoingOrder) =>
+  params.subcId
+    ? http.put<OutgoingOrder>(`/outgoing/order/${params.subcId}`, params)
+    : http.post<OutgoingOrder>("/outgoing/order", params);
+
+export const getOutgoingOrderPrintApi = (subcId: number) =>
+  http.service.get<Blob, Blob>(`/outgoing/order/${subcId}/print`, { responseType: "blob", timeout: 120000 });
 
 export const findOutformRecordApi = async (params: {
   id: number;

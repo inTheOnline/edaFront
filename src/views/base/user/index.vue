@@ -119,6 +119,15 @@ const enabledUserCount = computed(() => {
 // 本次改动：额外权限统一在这里配置，后续新增权限类型只要追加一个分组并让后端接收同名 key。
 const extraPermissionGroups = [
   {
+    key: "productionEfficiency", title: "生产效率", summary: "控制效率查看、异常核实、数据更正和标准确认",
+    options: [
+      { label: "查看生产效率", value: "production:eff:view", description: "查看效率首页、标准依据与历史结果" },
+      { label: "核实异常日报", value: "production:eff:review", description: "处理待核实记录" },
+      { label: "更正效率数据", value: "production:eff:correct", description: "更正已核实或待核实日报，保留修改记录" },
+      { label: "确认正常速度", value: "production:eff:confirm", description: "审核月度正常速度建议并立即生效" }
+    ]
+  },
+  {
     key: "price",
     title: "价格权限",
     summary: "控制用户是否可以查看、编辑和审批价格字段",
@@ -147,6 +156,15 @@ const extraPermissionGroups = [
       { label: "采购录入", value: "buy:purchase", description: "允许录入采购记录与批量采购信息" },
       { label: "审核请购", value: "buy:audit", description: "允许审核通过和驳回请购单" },
       { label: "查看全部", value: "buy:view:all", description: "允许查看全部请购记录，不受本人关联限制" }
+    ]
+  },
+  {
+    key: "stock",
+    title: "仓库权限",
+    summary: "控制仓库库存查看和出入库操作能力",
+    options: [
+      { label: "查看库存", value: "stock:view", description: "允许进入仓库模块并查看库存、流水和仓库配置" },
+      { label: "库存操作", value: "stock:post", description: "允许新增、修改和删除仓库出入库流水" }
     ]
   }
 ];

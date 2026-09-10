@@ -14,6 +14,7 @@
         ref="proTableRef"
         striped=true
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
+        @row-click="handleRowClick"
       >
         <!-- 1.表格展开Expand -->
         <!-- <template #expand="scope">
@@ -59,6 +60,7 @@
           <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增订单</el-button>
           <el-button type="primary" :icon="Upload" plain @click="leadOrder">导入订单</el-button>
           <el-button type="primary" :icon="Upload" plain @click="batchAdd">批量添加订单</el-button>
+          <el-button type="primary" plain @click="openQuickRequisition">快速请购</el-button>
           <el-button type="primary" :icon="Download" plain @click="downloadFile">导出订单数据</el-button>
           <el-button
             type="danger"
@@ -69,6 +71,7 @@
           >
             批量删除订单
           </el-button>
+          <SelectionSummary :items="selectionSummary" :disabled="!scope.isSelected" @clear="cancelSelect" />
         </template>
         <!-- 2.表格数据操作按钮区域 -->
         <template #operation="scope">
@@ -81,12 +84,14 @@
     <UserDrawer ref="drawerRef" />
     <ImportExcel ref="dialogRef" />
     <Dialog ref="leadRef" />
+    <QuickRequisitionDialog ref="quickRequisitionRef" />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, reactive,onMounted,computed } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
+import SelectionSummary from "@/components/SelectionSummary/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
 import { getOrderAll,getModel,addManyOrder,deleteMany,addOrder,editOrder,delect } from "@/api/modules/order";
 import { getDepartmentApi } from "@/api/modules/department";
@@ -100,10 +105,21 @@ import {useMapStore} from '@/stores/modules/map'
 import {useDictStore} from '@/stores/modules/dict'
 import SvgIcon from "@/components/SvgIcon/index.vue";
 import Dialog from "@/views/order/orderTable/components/Dialog.vue"; 
+import QuickRequisitionDialog from "@/views/order/orderTable/components/QuickRequisitionDialog.vue";
 const mapStote = useMapStore();
 const dictStore = useDictStore()
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
+const selectedList = computed<any[]>(() => proTableRef.value?.selectedList || []);
+const sumSelectedMaters = (field: string) => selectedList.value.reduce(
+  (total, row) => total + (row.maters || []).reduce((subtotal: number, item: any) => subtotal + Number(item[field] || 0), 0),
+  0
+);
+const selectionSummary = computed(() => [
+  { label: "订单数量", value: sumSelectedMaters("totalNumber") },
+  { label: "已交数量", value: sumSelectedMaters("alreadyNumber") },
+  { label: "未交数量", value: sumSelectedMaters("notAlreadyNumber") },
+]);
 const leadRef =ref(null)
 const dataCallback = (data) => {    // 数据回调
     return {
@@ -250,6 +266,10 @@ const batchAdd = () => {
   };
   dialogRef.value?.acceptParams(params);
 };
+const handleRowClick = (row: any) => proTableRef.value?.element?.toggleRowSelection(row);
+const cancelSelect = () => proTableRef.value?.element?.clearSelection();
+const quickRequisitionRef = ref<InstanceType<typeof QuickRequisitionDialog> | null>(null);
+const openQuickRequisition = () => quickRequisitionRef.value?.open(proTableRef.value?.getTableList);
 </script>
 
 <style lang="scss" scoped>

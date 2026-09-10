@@ -4,6 +4,7 @@ import { RouteRecordRaw } from "vue-router";
 import { ElNotification } from "element-plus";
 import { useUserStore } from "@/stores/modules/user";
 import { useAuthStore } from "@/stores/modules/auth";
+import { hasRoutePermission } from "@/utils";
 
 // 引入 views 文件夹下所有 vue 文件
 const modules = import.meta.glob("@/views/**/*.vue");
@@ -48,10 +49,10 @@ export const initDynamicRouter = async () => {
       //   router.addRoute("layout", item as unknown as RouteRecordRaw);
       // }
       //权限控制（我加的）
-      if (item.meta.isFull && authStore.userInfoGet.powers.includes(item.meta.roles)) {
+      if (item.meta.isFull && hasRoutePermission(item, authStore.userInfoGet.powers)) {
         router.addRoute(item as unknown as RouteRecordRaw);
       } else {
-        if (authStore.userInfoGet.powers.includes(item.meta.roles)) {
+        if (hasRoutePermission(item, authStore.userInfoGet.powers)) {
           router.addRoute("layout", item as unknown as RouteRecordRaw);
         }
       }

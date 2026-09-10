@@ -1,6 +1,7 @@
 /* Menu */
 declare namespace Menu {
   interface MenuOptions {
+    id: number;
     path: string;
     name: string;
     component?: string | (() => Promise<unknown>);

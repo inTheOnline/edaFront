@@ -86,6 +86,7 @@
               :data="menuTree"
               node-key="id"
               show-checkbox
+              check-strictly
               default-expand-all
               highlight-current
               :props="{ label: 'label', children: 'children' }"
@@ -236,8 +237,13 @@ const currentExtraCount = computed(() => countExtraPermissions(currentForm.value
 
 watch(
   () => props.visible,
-  value => {
+  async value => {
     visible.value = value;
+    if (value) {
+      await nextTick();
+      initRoleForms();
+      await renderRouteTree();
+    }
   }
 );
 
@@ -391,14 +397,17 @@ const toRoleItem = (role: any): RoleItem => {
 };
 
 const buildSavePayload = () => {
-  const roleId = activeRole.value;
-  // 本次修复：只提交当前正在编辑的角色，避免未编辑角色被空权限覆盖。
-  return {
-    [roleId]: {
-      ...formMap[roleId],
-      roleName: displayRoleList.value.find(role => String(role.value) === roleId)?.label
-    }
-  };
+  return Object.fromEntries(
+    displayRoleList.value
+      .filter(role => !String(role.value).startsWith("mock-") && formMap[String(role.value)])
+      .map(role => [
+        String(role.value),
+        {
+          ...formMap[String(role.value)],
+          roleName: role.label
+        }
+      ])
+  );
 };
 
 const save = async () => {

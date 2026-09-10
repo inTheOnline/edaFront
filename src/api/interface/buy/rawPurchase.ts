@@ -19,8 +19,31 @@ export interface RawMaterOption {
   rawSpecs: string;
   sheetOutputNumber?: number;
   rollUnitWeight?: number;
+  grossWeight?: number;
+  sheetWeight?: number;
   label?: string;
   value?: string;
+}
+
+export interface RawMaterRelation {
+  id?: number;
+  materId?: number | string;
+  materNum?: string;
+  materName?: string;
+  sheetRawId?: number | string;
+  sheetRawNum?: string;
+  sheetRawSpecs?: string;
+  sheetOutputNumber?: number;
+  rollRawId?: number | string;
+  rollRawNum?: string;
+  rollRawSpecs?: string;
+  rollUnitWeight?: number;
+  grossWeight?: number;
+  sheetWeight?: number;
+  utilBadWeight?: number;
+  remark?: string;
+  createdTime?: string;
+  updatedTime?: string;
 }
 
 export interface RawPurchasePageResult<T> {

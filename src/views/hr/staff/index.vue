@@ -88,6 +88,7 @@ const columns: ColumnProps[] = reactive([
     label: "工号",
     prop: "num",
     fixed: "left",
+    width: 120,
   },
   {
     label: "姓名",
@@ -196,7 +197,7 @@ const columns: ColumnProps[] = reactive([
     prop: "remark",
     minWidth: 180,
   },
-  { prop: "operation", label: "操作", fixed: "right", width: 380 },
+  { prop: "operation", label: "操作", fixed: "right", width: 320 },
 ]);
 // 打开抽屉
 const openDrawer = async (title: string, row: Object = {}) => {

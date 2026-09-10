@@ -7,9 +7,10 @@
 
 ## 功能内容
 - 提供出货单分页查询。
-- 支持新增、批量添加、自定义批量弹窗、Excel 导入、Excel 导出、批量删除。
+- 支持新增、批量添加、自定义批量弹窗、Excel 导入、Excel 导出、批量删除；批量添加可选择是否同步库存，默认同步。
 - 支持按送货单号、订单号、产品、创建人、状态等字段筛选。
 - 导出当前筛选条件下的全部订单出货数据，不受列表分页限制；Excel 使用列表中文列名。
+- 列表支持点击整行勾选；顶部汇总所选记录的送货数量，并可一键取消选择。
 
 ## 技术实现
 - 页面会先加载 order、user、mater 字典。
@@ -23,7 +24,7 @@
 - addMany => POST /orderOut/addMany
 - deleteMany => POST /orderOut/deleteMany
 - addOrderOut => POST /orderOut/addOrder
-- addBatchApi => POST /orderOut/addBatchApi（模块接口存在，页面弹窗侧可能会调用）
+- addBatchApi => POST /orderOut/addBatchApi?syncStock=true（`syncStock` 可选，默认 `true`）
 - getDepartmentApi => GET /department/getMap
 - getStateApi => GET /outgoing/getSubc_state
 

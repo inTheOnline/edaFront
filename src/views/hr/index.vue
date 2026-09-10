@@ -35,7 +35,6 @@
 import PieChart from "@/components/ECharts/index.vue"
 import {getDepartNumber,getAgeNumber,getNumber} from "@/api/modules/hr"
 import {ref,onMounted,reactive} from "vue"
-import { j } from "vite/dist/node/types.d-aGj9QkWt";
 const data = ref([]);
 const dataLoaded = ref(false);
 const ageData = ref([]);

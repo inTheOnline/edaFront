@@ -1,37 +1,17 @@
-﻿# godown/flow 仓库流水页
+# 仓库流水
 
-## 阅读顺序
-- 当前目录被上层页面复用时，也要顺手检查调用方传入的参数。
+- 列表、详情及当前页导出显示相关人（relatedPerson）；新增、编辑、批量添加均必填。
+- PersonSelect 复用 staff 员工字典，输入至少一个字后联想，只能选择员工姓名。自动流水由后端记录本次操作人姓名。
+- 批量添加在流水类型旁统一选择相关人，整批每条流水使用同一个相关人；重新打开弹窗时清空选择。
 
-## 功能内容
-- 提供仓库流水分页查询。
-- 支持新增、查看、编辑、单个删除、批量删除；单个删除与批量删除都需要二次确认后才会真正提交删除。
-- 支持导入、导出、批量添加等典型仓库流水维护动作。
-- 页面可加载客户、用户、物料、项目等字典后进行筛选显示。
-
-## 技术实现
-- 页面是典型 ProTable + UserDrawer + ImportExcel 组合。
-- 使用 computed 读取 selectedList，并直接调用 ProTable 内部 element 进行选中控制。
-- dataCallback 统一把 records/total 适配给表格。
-- 批量导入和导出分别走 ImportExcel 与 useDownload。
-
-## 后端 API
-- getFlow => POST /godown/getFlow
-- addFlow => POST /godown/addFlow
-- editFlow => PUT /godown/editFlow
-- deleteFlow => DELETE /godown/deleteFlow/{id}
-- deleteFlowBatch => POST /godown/deleteFlowBatch
-- addFlowBatchApi => POST /godown/addFlowBatch（模块接口存在，页面侧当前主要通过本地弹窗批量处理）
-- getTotal => POST /godown/getTotal（仓库总览页会用到）
-- getDepartmentApi => GET /department/getMap
-- getStateApi => GET /outgoing/getSubc_state
-
-## 代码习惯规范
-- 主要使用 script setup + TypeScript，页面逻辑直接写在 index.vue。
-- 列表页统一围绕 ProTable 组织，列定义集中在 columns 中，搜索项直接写在列配置里。
-- 分页序号通常通过 proTableRef.pageable.pageNum/pageSize 手动计算，不要随意改成另一套写法。
-- 新增/查看/编辑通常通过本目录或复用目录下的 Drawer/Dialog 组件完成，父页用 acceptParams 传 title、isView、row、api、getTableList。
-- UserDrawer 新增时日期默认补当天；编辑/查看保留传入 row.date。
-- 字典类枚举优先走 dictStore.loadDicts 或接口 enum，不要在页面里重复硬编码。
-- 导入导出优先复用 ImportExcel 和 useDownload。
-- 删除后通常调用 reset 刷新表格，保持现有交互一致。
+- POST /stock/v2/flow/page 返回有效流水分页 records/total。入库加、出库减；已删除及修改前版本不进入列表和库存。
+- 支持仓库、物料编号/名称、类型、日期和库存类别筛选；统计抽屉按 itemId、qualityStatus 精确查询。
+- 汇总卡片和图表放在仓库首页，本页仅保留筛选、操作、明细与分页。
+- POST /stock/v2/manual 新增，PUT /stock/v2/manual/{docId} 修改，修改在事务内撤销旧数量并新增有效版本。
+- DELETE /stock/v2/flow/{docId} 与 POST /stock/v2/flow/deleteBatch 撤销库存影响并逻辑删除；不产生额外反向流水。
+- 业务自动流水可删除，不允许手工编辑；沿用业务停止同步规则。
+- ProTable 提供选择、筛选与分页，FlowDrawer 提供新增/查看/编辑；导出仅当前页。
+- 复用 SelectionSummary 显示选中条数和数量合计（按 quantity 相加），支持取消选择；刷新、翻页后清空选择及汇总。
+- fixedWarehouseCode/fixedItemId/fixedQualityStatus/readOnly/showSwitcher 支持只读对账。
+- 库存类别使用标签：未检黄色、已检绿色、普通库存灰色；流水类型复用 GodownTypeEnum 的旧仓库标签配色，未匹配类型沿用默认蓝色。
+- 验证：入库1后流水和统计均为1，修改为2后仅新版本计入2，删除后统计归0。

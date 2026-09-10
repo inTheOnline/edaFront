@@ -32,8 +32,11 @@
       <el-form-item label="理论重量(kg)" prop="theoryWeight">
         <el-input v-model="drawerProps.row.theoryWeight" placeholder="请填入理论重量(kg)" clearable></el-input>
       </el-form-item>
-      <el-form-item label="价格(元)" prop="price" v-show="authStore.isExistence('price:look')">
+      <el-form-item label="价格(元)" prop="price" v-show="authStore.isExistence('price:view')">
         <el-input v-model="drawerProps.row.price" placeholder="请输入价格信息" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="冲压费(元)" prop="stampingFee" v-show="authStore.isExistence('price:view')">
+        <el-input-number v-model="drawerProps.row.stampingFee" :min="0" :precision="4" controls-position="right" />
       </el-form-item>
       <el-form-item label="客户" prop="custId">
         <el-select v-model="drawerProps.row.custId" placeholder="请选择客户" clearable>
@@ -51,7 +54,6 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive,onMounted} from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import { de } from "element-plus/es/locale";
 import {useAuthStore} from '@/stores/modules/auth'
 import {useDictStore} from '@/stores/modules/dict'
 const authStore = useAuthStore();
@@ -70,6 +72,7 @@ const rules = reactive({
   s: [{ required: false, message: "请输入表面积" }],
   theoryWeight: [{ required: false, message: "请填入理论重量" }],
   price: [{ required: false, message: "请输入价格信息" }],
+  stampingFee: [{ required: false, message: "请输入冲压费" }],
   custId: [{ required: true, message: "请选择客户" }],
 });
 const drawerVisible = ref(false);

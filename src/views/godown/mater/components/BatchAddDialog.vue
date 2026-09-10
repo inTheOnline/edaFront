@@ -48,6 +48,15 @@
 
       <div class="actions">
         <el-button type="primary" @click="addRow">添加一行</el-button>
+        <el-upload
+          ref="uploadRef"
+          accept=".xls,.xlsx"
+          :auto-upload="false"
+          :show-file-list="false"
+          :on-change="importExcel"
+        >
+          <el-button>导入 Excel</el-button>
+        </el-upload>
       </div>
     </div>
 
@@ -59,8 +68,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { ElMessage } from "element-plus";
+import { h, ref } from "vue";
+import { ElMessage, ElMessageBox, type UploadFile, type UploadInstance } from "element-plus";
+import * as XLSX from "xlsx";
 import { batchChangePriceApi, getPriceMap } from "@/api/modules/mater";
 
 type MaterOption = {
@@ -77,6 +87,7 @@ type PriceRow = {
 };
 
 const visible = ref(false);
+const uploadRef = ref<UploadInstance>();
 const materList = ref<MaterOption[]>([]);
 const priceMap = ref<Map<number, number>>(new Map());
 let refreshTable: (() => void | Promise<void>) | null = null;
@@ -123,12 +134,104 @@ const onMaterChange = (row: PriceRow) => {
   row.price = price;
 };
 
+const showErrors = (errors: string[], title = "导入失败") => {
+  ElMessageBox.alert(
+    h(
+      "div",
+      { style: "max-height: 360px; overflow: auto; line-height: 1.8;" },
+      errors.map(error => h("div", error))
+    ),
+    title,
+    { type: "error" }
+  );
+};
+
+const importExcel = async (file: UploadFile) => {
+  try {
+    if (!file.raw) return;
+
+    const workbook = XLSX.read(await file.raw.arrayBuffer(), { type: "array" });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!worksheet) return showErrors(["Excel 中没有可读取的工作表"]);
+
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "", raw: false });
+    if (!data.length) return showErrors(["Excel 中没有数据"]);
+
+    const headers = Object.keys(data[0]).map(header => header.trim());
+    const missingHeaders = ["物料编号", "新价"].filter(header => !headers.includes(header));
+    if (missingHeaders.length) return showErrors([`缺少必填列：${missingHeaders.join("、")}`]);
+
+    const materMap = new Map(materList.value.map(item => [String(item.num ?? "").trim(), item]));
+    const existingMaterIds = new Set(form.value.records.filter(row => row.materId !== "").map(row => String(row.materId)));
+    const importedMaterIds = new Set<string>();
+    const errors: string[] = [];
+    const rows: PriceRow[] = [];
+
+    data.forEach((item, index) => {
+      const rowNumber = index + 2;
+      const materNum = String(item["物料编号"] ?? "").trim();
+      const priceText = String(item["新价"] ?? "").trim();
+      const mater = materMap.get(materNum);
+      const price = Number(priceText);
+
+      if (!materNum) errors.push(`第 ${rowNumber} 行：物料编号不能为空`);
+      else if (!mater) errors.push(`第 ${rowNumber} 行：物料编号“${materNum}”不存在`);
+      else if (existingMaterIds.has(String(mater.value)) || importedMaterIds.has(String(mater.value))) {
+        errors.push(`第 ${rowNumber} 行：物料编号“${materNum}”重复`);
+      }
+
+      if (!priceText) errors.push(`第 ${rowNumber} 行：新价不能为空`);
+      else if (!Number.isFinite(price) || price < 0) errors.push(`第 ${rowNumber} 行：新价“${priceText}”不是有效的非负数字`);
+
+      if (mater && priceText && Number.isFinite(price) && price >= 0) {
+        importedMaterIds.add(String(mater.value));
+        rows.push({
+          materId: mater.value,
+          oldPrice: priceMap.value.get(Number(mater.value)) ?? null,
+          price
+        });
+      }
+    });
+
+    if (errors.length) return showErrors(errors);
+
+    form.value.records.push(...rows);
+    ElMessage.success(`成功导入 ${rows.length} 条价格记录`);
+  } catch {
+    showErrors(["文件读取失败，请确认文件为有效的 Excel 格式"]);
+  } finally {
+    uploadRef.value?.clearFiles();
+  }
+};
+
+const validateDuplicateMaters = () => {
+  const counts = new Map<string, number>();
+  form.value.records.forEach(row => {
+    if (row.materId !== "") {
+      const key = String(row.materId);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  });
+
+  const errors = [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([materId, count]) => {
+      const mater = materList.value.find(item => String(item.value) === materId);
+      return `${mater ? formatMaterLabel(mater) : materId}：共 ${count} 行相同`;
+    });
+
+  if (!errors.length) return true;
+  showErrors(errors, "数据重复");
+  return false;
+};
+
 const submit = async () => {
   if (!form.value.effectiveDate) return ElMessage.warning("请选择生效日期");
   if (!form.value.records.length) return ElMessage.warning("请至少添加一条记录");
   if (form.value.records.some(row => !row.materId || row.price === null || row.price === undefined)) {
     return ElMessage.warning("请选择物料并填写新价");
   }
+  if (!validateDuplicateMaters()) return;
 
   const payload = form.value.records.map(row => ({
     materId: Number(row.materId),
@@ -154,7 +257,8 @@ defineExpose({ open });
 }
 
 .actions {
+  display: flex;
+  gap: 10px;
   margin-top: 10px;
-  text-align: left;
 }
 </style>

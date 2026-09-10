@@ -6,20 +6,22 @@
 - 当前目录被上层页面复用时，也要顺手检查调用方传入的参数。
 
 ## 功能内容
-- index.vue 负责展示可查看的月份按钮列表。
-- detail.vue 负责展示指定年月的考勤/工资明细表，并支持导入、导出、查看、编辑。
-- 详情页列结构包含固定列和后端返回的动态日期明细列。
+- index.vue 直接承载考勤详情，不再保留单独的月份按钮列表。
+- detail.vue 负责展示指定年月的考勤矩阵，并支持筛选、查看每日打卡、人工修正、登记请假、导入考勤和计算工资。
+- 详情页按月份生成日期列，左侧固定员工信息，右侧固定工时与异常汇总。
 
 ## 技术实现
-- index.vue 在 onBeforeMount 中调用 getMonths，然后通过 router.push 携带 year/month 跳到 detail。
-- detail.vue 使用 useRoute 读取 query 参数，再通过 getDateDetails 获取动态列 details。
-- 详情页 ProTable 数据请求仍使用 hr.getAll，说明页面当前有“考勤明细 + 职工表格接口复用”的痕迹。
+- 进入考勤管理时直接展示月度矩阵；URL 没有年月参数时自动选择最近一次已导入的考勤月份。
+- detail.vue 使用 useRoute 读取 query 参数，通过 getAttendancePage 获取指定月份的员工考勤和汇总数据。
+- 点击每日状态打开详情抽屉，可用人工记录覆盖系统判定；请假支持起止日期时间和跨天登记。
 - 上传考勤文件后，页面会从 addManyCheck 返回的 URL 直接构造 a 标签下载结果文件。
 - 该目录是动态列页面，修改前先确认后端返回 details 的结构。
 
 ## 后端 API
 - getMonths => GET /hr/check/getMonths
 - getDateDetails => GET /hr/check/getDateDetails?year=&month=
+- getAttendancePage => GET /hr/check/page?year=&month=&pageNum=&pageSize=
+- saveAttendanceAdjustment => POST /hr/check/adjustment
 - getAll => GET /hr/staff/all（详情页当前仍复用职工列表接口）
 - addManyCheck => POST /file/kaoqin
 - getCheckModel => DOWNLOAD /hr/check/getModel

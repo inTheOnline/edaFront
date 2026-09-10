@@ -22,6 +22,7 @@
             @click="priceChange">价格变更</el-button>
                         <!-- v-show="authStore.isExistence('price:view') || authStore.isExistence('price:edit')" -->
           <el-button type="primary" :icon="Upload" plain @click="batchAdd">批量添加物料</el-button>
+          <el-button type="success" plain @click="bindingDialogRef?.open()">插件关系</el-button>
           <el-button type="primary" :icon="Download" plain @click="downloadFile">导出物料数据</el-button>
           <el-button
             type="danger"
@@ -44,6 +45,7 @@
     <UserDrawer ref="drawerRef" />
     <ImportExcel ref="dialogRef" />
     <BatchAddDialog ref="priceDialogRef" />
+    <MaterBindingDialog ref="bindingDialogRef" />
   </div>
 </template>
 
@@ -64,9 +66,11 @@ import {useDictStore} from '@/stores/modules/dict'
 import SvgIcon from "@/components/SvgIcon/index.vue";
 import { deleteById } from "@/api/modules/supWork";
 import BatchAddDialog from "./components/BatchAddDialog.vue";
+import MaterBindingDialog from "./components/MaterBindingDialog.vue";
 const authStore = useAuthStore();
 const dictStore = useDictStore()
 const priceDialogRef = ref<InstanceType<typeof BatchAddDialog> | null>(null);
+const bindingDialogRef = ref<InstanceType<typeof MaterBindingDialog> | null>(null);
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const dataCallback = (data) => {    // 数据回调
@@ -152,6 +156,11 @@ const columns: ColumnProps[] = reactive([
   {
     label: "价格(元)",
     prop: "price",
+    isShow:authStore.isExistence("price:view")
+  },
+  {
+    label: "冲压费(元)",
+    prop: "stampingFee",
     isShow:authStore.isExistence("price:view")
   },
   { prop: "operation", label: "操作", fixed: "right", width: 250 },

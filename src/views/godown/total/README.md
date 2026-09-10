@@ -1,31 +1,25 @@
-﻿# godown/total 库存汇总页
+# 仓库统计
 
-## 阅读顺序
-- 修改本目录代码前，先读本 README.md。
-- 如果本目录下还有 components、config、drawer、dialog 等文件，先读这些实现再改动。
-- 当前目录被上层页面复用时，也要顺手检查调用方传入的参数。
+## 流水类型管理
+- “更多操作 → 库存流水类型管理”打开弹窗，不切换路由、不新增标签；关闭弹窗保留统计页状态。
+- `FlowTypeSettings.vue` 使用 Element Plus 表格展示所有类型（含禁用、隐藏项），支持名称或编码、适用仓库筛选。
+- `GET /stock/v2/flowTypes/settings` 获取全部类型，`PUT /stock/v2/flowTypes/{id}/settings` 单独更新 enabled 或 frontShow；沿用 stock:post 权限。
+- 开关直接绑定类型行，保存前校验有效编号，避免发出 undefined 请求；立即保存，请求期间锁定该行，失败保留原状态。禁用阻止新入账，隐藏仅影响手工录入下拉，历史流水不变。
 
-## 功能内容
-- 展示仓库库存汇总列表。
-- 支持新增、查看、编辑、导出等操作入口。
-- 支持按客户、用户、物料、项目等字典信息筛选或显示。
+## 功能和接口
+- `GET /stock/v2/warehouses` 加载仓库，`POST /stock/v2/total/page` 分页展示库存。
+- 后端与流水页共用有效流水规则，按净额汇总，余额表用于记账和一致性核对。
+- DUAL仓库分别显示未检/已检，普通仓库显示数量。产品即使没有有效流水仍展示0。
+- 点击数量，在只读抽屉复用 `../flow/index.vue`，按 warehouseCode/itemId/qualityStatus 精确查询。
+- 近60天活跃度仅影响排序，不限制统计的有效流水日期范围。
 
-## 技术实现
-- 页面数据来源是 godown/flow 模块中的 getTotal，而不是单独的 total 模块。
-- 页面模式与 flow、mater 等列表页一致。
-- 默认排序由后端 `/godown/getTotal` 在分页前完成：按产品近 60 天未删除仓库流水条数倒序，同分再按最近流水日期倒序、产品编号升序。
-- 近 60 天活跃度只用于排序，不在页面展示，也不删除 60 天以前的历史流水。
-- 如果后续要扩展库存预警、周转天数等能力，可继续在这个目录内演进。
+## 一致性检查
+- 加载列表时调用 `GET /stock/v2/check?warehouseCode=...`，手动入口位于“更多操作 → 库存一致性检查”。自动检查正常时不提示；手动检查正常仅显示短提示。
+- 按仓库、物料、库存类别、库位和批次比较有效流水、余额表和未删除台账，仅有差异时显示“库存数据异常”，明细展示物料、关联单据及相对有效流水的余额/台账差额；正数多记，负数少记。
+- 检查只报告，不自动修改历史数据；差异表示内部记账数据不同，不表示实物盘亏；需核对关联单据后处理。
+- 导出当前页库存，不代表全仓所有物料。
 
-## 后端 API
-- getTotal => POST /godown/getTotal
-- getModel => 如果从页面导出逻辑延伸，实际仍复用 flow/godown 相关导出方式
-
-## 代码习惯规范
-- 主要使用 script setup + TypeScript，页面逻辑直接写在 index.vue。
-- 列表页统一围绕 ProTable 组织，列定义集中在 columns 中，搜索项直接写在列配置里。
-- 分页序号通常通过 proTableRef.pageable.pageNum/pageSize 手动计算，不要随意改成另一套写法。
-- 新增/查看/编辑通常通过本目录或复用目录下的 Drawer/Dialog 组件完成，父页用 acceptParams 传 title、isView、row、api、getTableList。
-- 字典类枚举优先走 dictStore.loadDicts 或接口 enum，不要在页面里重复硬编码。
-- 导入导出优先复用 ImportExcel 和 useDownload。
-- 删除后通常调用 getTableList 或 reset 刷新表格，保持现有交互一致。
+## 组件与验证
+- 保留 ProTable 的列插槽、搜索及分页习惯，复用流水页的明细对账展示。
+- 点击未检/已检数量，检查抽屉只显示对应物料类别，所有分页净额等于入口数量。
+- 对账请求独立于列表加载，失败不阻塞库存列表；沿用HTTP错误提示，不伪装成“检查通过”。切换仓库清空旧结果并忽略旧请求。

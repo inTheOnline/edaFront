@@ -15,6 +15,15 @@
       <el-form-item label="简称" prop="callName">
         <el-input v-model="drawerProps.row.callName" placeholder="请填入简称" clearable></el-input>
       </el-form-item>
+      <el-form-item label="联系人" prop="contactName">
+        <el-input v-model="drawerProps.row.contactName" placeholder="请填写联系人" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="联系电话" prop="contactPhone">
+        <el-input v-model="drawerProps.row.contactPhone" placeholder="请填写联系电话" clearable></el-input>
+      </el-form-item>
+      <el-form-item label="地址" prop="address">
+        <el-input v-model="drawerProps.row.address" placeholder="请填写地址" clearable></el-input>
+      </el-form-item>
       <el-form-item label="状态" prop="state">
         <el-select v-model="drawerProps.row.state" placeholder="请选择状态" clearable>
           <el-option v-for="item in stateMap" :key="item.value" :label="item.label" :value="item.value" />
@@ -49,8 +58,9 @@ onMounted(async () => {
 });
 // 验证规则
 const rules = reactive({
-  workName: [{ required: true, message: "请填写供应商名称" }],
-  remark: [{ required: false, message: "备注" }],
+  supName: [{ required: true, message: "请填写供应商名称", trigger: "blur" }],
+  state: [{ required: true, message: "请选择状态", trigger: "change" }],
+  constant: [{ required: true, message: "请填写系数", trigger: "blur" }],
 });
 const drawerVisible = ref(false);
 const drawerProps = ref<DrawerProps>({
@@ -60,6 +70,9 @@ const drawerProps = ref<DrawerProps>({
     supName: "",
     state: 0,
     callName: "",
+    contactName: "",
+    contactPhone: "",
+    address: "",
     constant: 0.0,
     workId: 0,
     remark: "",

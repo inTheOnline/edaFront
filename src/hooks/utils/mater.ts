@@ -1,5 +1,4 @@
 import { Custs } from "@/api/interface/outgoing";
-import { fa } from "element-plus/es/locale";
 export function optionMap(data: Custs) {
   const children = Array.isArray(data.children) ? data.children.map(optionMap) : undefined;
   const disabled = isNaN(Number(data.id)) && !Array.isArray(data.children) ? true : false;

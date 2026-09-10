@@ -12,7 +12,7 @@ export const getMapNum = () => {
   return http.get<ResultData>(`/mater/getMapNum`);
 };
 export const getModel = () => {
-  return http.post<any>(`/mater/getModel`);
+  return http.download(`/mater/getModel`);
 };
 export const addMany = (file) => {
   return http.post<any>(`/mater/addMany`, file);
@@ -41,3 +41,6 @@ export const batchChangePriceApi = (row:object[]) =>{
 export const getPriceMap =()=>{
   return http.get<Record<string, number>>(`/mater/priceMap`);
 }
+export const getMaterBindings = () => http.get<any>(`/mater/bindings`);
+export const saveMaterBinding = (data: any) => http.post<any>(`/mater/binding`, data);
+export const deleteMaterBinding = (id: number) => http.delete<any>(`/mater/binding/${id}`);

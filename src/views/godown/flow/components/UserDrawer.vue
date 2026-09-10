@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="drawerVisible" :destroy-on-close="true" size="500px" :title="`${drawerProps.title}物料`">
+  <el-drawer v-model="drawerVisible" :destroy-on-close="true" size="700px" :title="`${drawerProps.title}物料`">
     <el-form
       ref="ruleFormRef"
       label-width="150px"
@@ -86,7 +86,6 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive,onMounted} from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import { de } from "element-plus/es/locale";
 import {useAuthStore} from '@/stores/modules/auth'
 import {useDictStore} from '@/stores/modules/dict'
 import { GodownTypeMap } from "@/enums/godownEnum";

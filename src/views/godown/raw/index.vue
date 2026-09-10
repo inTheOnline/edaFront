@@ -1,6 +1,7 @@
 <template>
   <div class="mater-container">
-    <div>
+    <RawModuleHeader title="原材料档案" description="统一维护板料、卷料的编号、规格、材质与单位重量。" :icon="Box" />
+    <div class="table-panel">
       <ProTable
         :columns="columns"
         :request-api="getAll"
@@ -8,9 +9,9 @@
         :pagination="true"
         :tool-button="['refresh', 'setting', 'search']"
         row-key="id"
-        title="Outgoing-Form"
+        title="原材料清单"
         ref="proTableRef"
-        striped=true
+        striped="true"
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 3, xl: 4 }"
       >
         <template #tableHeader="scope">
@@ -41,32 +42,39 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive,onMounted,computed } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
-import { getAll,getModel,addMany,deleteMany,add,edit } from "@/api/modules/raw";
+import { getAll, getModel, addMany, deleteMany, add, edit } from "@/api/modules/raw";
 import { useDownload } from "@/hooks/useDownload";
 import UserDrawer from "./components/UserDrawer.vue";
-import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
+import RawModuleHeader from "../components/RawModuleHeader.vue";
+import { Box, CirclePlus, Delete, EditPen, Download, Upload, View } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
-import {useDictStore} from '@/stores/modules/dict'
-const dictStore = useDictStore()
+import { useDictStore } from "@/stores/modules/dict";
+const dictStore = useDictStore();
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
-const dataCallback = (data) => {    // 数据回调
-    return {
-      list: data.records,
-      total: data.total
-    };
+const dataCallback = (data) => {
+  // 数据回调
+  return {
+    list: data.records,
+    total: data.total,
+  };
 };
 onMounted(async () => {
-  await dictStore.loadDicts(['mater']);
+  await dictStore.loadDicts(["mater"]);
 });
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
-  { type: "index", label: "序号", width : 60, align: "center",
-  index : (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1 },
+  {
+    type: "index",
+    label: "序号",
+    width: 60,
+    align: "center",
+    index: (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1,
+  },
   {
     label: "原料编号",
     prop: "rawNum",
@@ -77,7 +85,19 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 150
+    width: 150,
+  },
+  {
+    label: "原材料名称",
+    prop: "rawName",
+    search: {
+      el: "input",
+      tooltip: "输入原材料名称进行搜索",
+      props: {
+        prefixIcon: "search",
+      },
+    },
+    width: 180,
   },
   {
     label: "规格",
@@ -89,7 +109,7 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 250
+    width: 250,
   },
   {
     label: "单位重量",
@@ -102,6 +122,10 @@ const columns: ColumnProps[] = reactive([
   {
     label: "类别",
     prop: "type",
+    enum: [
+      { label: "板料", value: 1 },
+      { label: "卷料", value: 2 },
+    ],
   },
   {
     label: "备注",
@@ -123,20 +147,20 @@ const openDrawer = async (title: string, row: Object = {}) => {
 };
 
 // 删除已选项目
-const deleteSelected = async(ids: number[]): Promise<void> => {
+const deleteSelected = async (ids: number[]): Promise<void> => {
   await deleteMany(ids);
-  ElMessage.success("删除原料成功！`")
+  ElMessage.success("删除原料成功！`");
   proTableRef.value?.getTableList();
 };
 //删除单个
-const deleteOne = async (row) =>{
+const deleteOne = async (row) => {
   const ids = [row.id];
   await deleteSelected(ids);
-}
+};
 // 导出原料列表
 const downloadFile = async () => {
   ElMessageBox.confirm("确认导出用户数据?", "温馨提示", { type: "warning" }).then(() =>
-    useDownload(getModel, "原料列表", proTableRef.value?.searchParam)
+    useDownload(getModel, "原料列表", proTableRef.value?.searchParam),
   );
 };
 // 批量添加原料
@@ -146,12 +170,39 @@ const batchAdd = () => {
     title: "原料",
     tempApi: getModel,
     importApi: addMany,
-    getTableList: proTableRef.value?.getTableList
+    getTableList: proTableRef.value?.getTableList,
   };
   dialogRef.value?.acceptParams(params);
 };
 </script>
 
 <style lang="scss" scoped>
+.mater-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 16px;
+}
 
+.table-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.table-panel :deep(.ProTable) {
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .mater-container {
+    gap: 12px;
+  }
+
+  :deep(.table-header .el-button) {
+    margin: 0 8px 8px 0;
+  }
+}
 </style>

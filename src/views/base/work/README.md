@@ -8,6 +8,7 @@
 ## 功能内容
 - 提供工种/岗位基础资料分页查询。
 - 支持新增、查看、编辑、批量删除。
+- 支持维护工艺大类下的小工艺；小工艺不直接关联料号。
 - 页面字段相对简单，主要用于下游模块字典引用。
 
 ## 技术实现
@@ -19,6 +20,9 @@
 - getAllWork => GET /work/getAll
 - addWork => POST /work/add
 - delectWorks => POST /work/removes
+- GET /work/detail
+- POST /work/detail
+- DELETE /work/detail/{id}
 
 ## 代码习惯规范
 - 主要使用 script setup + TypeScript，页面逻辑直接写在 index.vue。

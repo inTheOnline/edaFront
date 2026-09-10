@@ -175,8 +175,12 @@ export function getShowMenuList(menuList: Menu.MenuOptions[]) {
   let newMenuList: Menu.MenuOptions[] = JSON.parse(JSON.stringify(menuList));
   return newMenuList.filter(item => {
     item.children?.length && (item.children = getShowMenuList(item.children));
-    return !item.meta?.isHide && authStore.userInfoGet.powers.includes(item.meta.roles);
+    return !item.meta?.isHide && hasRoutePermission(item, authStore.userInfoGet.powers);
   });
+}
+
+export function hasRoutePermission(item: Menu.MenuOptions, powers: string[]) {
+  return powers.includes(`route:${item.id}`);
 }
 
 /**

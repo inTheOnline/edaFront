@@ -17,6 +17,7 @@
 - 新增/编辑/查看通常通过右侧抽屉或弹窗组件完成，父页用 acceptParams 注入 api、row、刷新函数和字典数据。
 - 字典数据优先来自 dictStore.loadDicts 或专用接口，不要在页面里重复造映射。
 - 导入导出优先复用 ImportExcel 和 useDownload。
+- 文件下载接口统一使用 `src/api/index.ts` 已封装的 `http.download(url, params?, config?)`。该方法使用 POST 请求并自动设置 `responseType: "blob"`；Excel、PDF、模板下载等二进制响应不要再用 `http.post`，也不要重复手写 Blob 响应配置。例如：`return http.download("/mater/getModel")`。
 - 很多页面存在历史复制痕迹，目录名、标题名、实际 API 可能不完全一致；修改前先比对 README 和真实代码。
 
 ## views 文档约定

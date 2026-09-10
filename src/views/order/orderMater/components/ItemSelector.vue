@@ -83,7 +83,19 @@ const tableColumns: ColumnProps[] = reactive([
   { prop: "orderDate", label: "下单时间", width: 180 },
   { prop: "sourceSys", label: "来源系统", width: 120 },
   { prop: "totalAmount", label: "订单金额", width: 150, align: "right" },
-  { prop: "orderStatus", label: "状态", tag: true, width: 150, align: "right" },
+  {
+    prop: "orderStatus",
+    label: "状态",
+    tag: true,
+    width: 150,
+    align: "right",
+    enum: [
+      { value: 0, label: "未处理", tagType: "info" },
+      { value: 1, label: "已转内部单", tagType: "success" },
+      { value: 2, label: "不予处理", tagType: "danger" },
+      { value: 3, label: "单价异常", tagType: "warning" },
+    ],
+  },
 ]);
 
 // 打开弹窗（无修改）

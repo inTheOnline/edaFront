@@ -10,47 +10,64 @@
       :tool-button="['refresh', 'setting', 'search']"
     >
       <template #operation="scope">
-        <el-button link type="primary" :icon="EditPen" @click="openEdit(scope.row)">编辑</el-button>
+        <div class="row-actions">
+          <el-button link type="primary" :icon="EditPen" @click="openEdit(scope.row)">编辑</el-button>
+          <el-button link type="primary" :icon="Clock" @click="openLog(scope.row)">修改记录</el-button>
+        </div>
       </template>
     </ProTable>
     <SalaryNormDrawer ref="drawerRef" />
+    <SalaryNormLogDialog ref="logRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { EditPen } from "@element-plus/icons-vue";
+import { Clock, EditPen } from "@element-plus/icons-vue";
 import ProTable from "@/components/ProTable/index.vue";
 import type { ColumnProps } from "@/components/ProTable/interface";
 import type { SalaryNorm } from "@/api/interface/hr";
 import { editSalaryNorm, getSalaryNorm, getSalaryNormPage } from "@/api/modules/hr";
 import { useDictStore } from "@/stores/modules/dict";
 import SalaryNormDrawer from "./components/SalaryNormDrawer.vue";
+import SalaryNormLogDialog from "./components/SalaryNormLogDialog.vue";
+import { salaryNormFields } from "./fields";
 
 const dictStore = useDictStore();
 const tableRef = ref<InstanceType<typeof ProTable>>();
 const drawerRef = ref<InstanceType<typeof SalaryNormDrawer>>();
+const logRef = ref<InstanceType<typeof SalaryNormLogDialog>>();
 const staffDict = computed(() => dictStore.dictMap["staff"] || []);
 const dataCallback = (data: any) => ({ list: data.records, total: data.total });
-const money = (value: unknown) => value == null ? "" : Number(value).toFixed(2);
+const money = (value: unknown) => (value == null ? "-" : Number(value).toFixed(2));
+
+const getStaffName = (staffId?: number) => {
+  const item = staffDict.value.find(option => String(option.value) === String(staffId));
+  return item?.label || `员工 ID：${staffId ?? "-"}`;
+};
 
 onMounted(() => dictStore.loadDicts(["staff"]));
 
 const columns: ColumnProps[] = reactive([
-  { type: "index", label: "序号", width: 70 },
+  { type: "index", label: "序号", width: 70, align: "center" },
   {
     label: "员工",
     prop: "staffId",
     minWidth: 150,
+    fixed: "left",
     enum: staffDict,
     search: { el: "select", props: { filterable: true, clearable: true } }
   },
-  ...[["basicNorm", "工资基数"], ["overNorm", "加班基数"], ["nightNorm", "夜班补贴基数"],
-    ["otherNorm", "其他补贴"], ["postNorm", "岗位补贴"], ["bonus", "奖金"],
-    ["eatCutpay", "餐住扣款"], ["fixedDeduction", "固定扣款"], ["social", "社保扣款"]]
-    .map(([prop, label]) => ({ prop, label, width: 125, render: ({ row }: any) => money(row[prop]) })),
-  { label: "备注", prop: "remark", minWidth: 180 },
-  { label: "操作", prop: "operation", fixed: "right", width: 90 }
+  ...salaryNormFields.map(item => ({
+    prop: item.prop,
+    label: item.label,
+    width: 125,
+    align: "right" as const,
+    headerAlign: "right" as const,
+    render: ({ row }: any) => money(row[item.prop])
+  })),
+  { label: "备注", prop: "remark", minWidth: 180, showOverflowTooltip: true },
+  { label: "操作", prop: "operation", fixed: "right", width: 185, align: "center" }
 ]);
 
 const openEdit = async (row: SalaryNorm) => {
@@ -62,8 +79,26 @@ const openEdit = async (row: SalaryNorm) => {
     refresh: tableRef.value?.getTableList
   });
 };
+
+const openLog = (row: SalaryNorm) => {
+  if (row.id) logRef.value?.open(row.id, getStaffName(row.staffId));
+};
 </script>
 
 <style scoped>
-.page { height: 100%; min-height: 0; }
+.page {
+  height: 100%;
+  min-height: 0;
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.row-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
 </style>

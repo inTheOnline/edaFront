@@ -94,7 +94,6 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive} from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import { de } from "element-plus/es/locale";
 // 验证规则
 const rules = reactive({
   name: [{ required: true, message: "请填写职工名称" }],

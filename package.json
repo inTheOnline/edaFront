@@ -1,7 +1,7 @@
 {
   "name": "geeker-admin",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "description": "geeker-admin open source management system",
   "author": {
@@ -53,10 +53,12 @@
     "echarts-liquidfill": "^3.1.0",
     "element-plus": "^2.7.6",
     "html2canvas": "^1.4.1",
+    "jsbarcode": "3.11.6",
     "jspdf": "^4.2.1",
     "md5": "^2.3.0",
     "mitt": "^3.0.1",
     "nprogress": "^0.2.0",
+    "pdfmake": "0.2.10",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^3.2.1",
     "print-js": "^1.6.0",
@@ -74,8 +76,11 @@
   "devDependencies": {
     "@commitlint/cli": "^18.4.3",
     "@commitlint/config-conventional": "^18.4.3",
+    "@types/jsbarcode": "3.11.4",
     "@types/md5": "^2.3.5",
     "@types/nprogress": "^0.2.3",
+    "@types/pdfmake": "0.2.11",
+    "@types/qrcode": "1.5.5",
     "@types/qs": "^6.9.15",
     "@types/sortablejs": "^1.15.8",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
@@ -139,3 +144,5 @@
     }
   }
 }
+
+

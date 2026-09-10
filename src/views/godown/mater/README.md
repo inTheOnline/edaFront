@@ -8,11 +8,14 @@
 ## 功能内容
 - 提供物料分页查询。
 - 支持新增、查看、编辑、单个删除、批量删除、批量导入、导出。
-- 支持价格变更弹窗，并通过权限点控制价格列显示与价格变更入口显示。
+- 支持价格变更弹窗，并通过权限点控制价格、冲压费列显示与价格变更入口显示。
+- 批量价格变更支持读取仅含“物料编号、新价”两列的 Excel；校验整份数据无误后追加到当前明细，任一行错误则拒绝整份导入并提示原因。
+- 批量价格变更提交前会按物料校验重复行；存在重复时阻止提交，并逐项显示物料及重复行数。
 - 支持按项目、客户、物料编号、物料名称等字段查询。
+- 支持通过“插件关系”窗口维护主产品与 T 结尾插件产品的一对一关系。
 
 ## 技术实现
-- 页面使用 authStore.isExistence 控制 price:look 权限。
+- 页面使用 authStore.isExistence 控制 price:view 权限，价格和冲压费字段统一按该权限显示。
 - 物料、客户、项目等下拉依赖 dictStore.loadDicts。
 - 新增/编辑走本目录 UserDrawer；批量价格调整走 BatchAddDialog。
 - 价格调整弹窗只提交物料、新价、生效日期、调价原因和批次；操作人和创建时间由后端自动生成。
@@ -21,7 +24,7 @@
 
 ## 后端 API
 - getAll => POST /mater/getAll
-- getModel => POST /mater/getModel（当前页面拿来做导出/模板）
+- getModel => POST /mater/getModel（基于后端 `files/model/godown/materModel.xlsx` 下载模板，并预填现有物料的物料编号、物料名称、终端客户物料、客户、项目）
 - addMany => POST /mater/addMany
 - addMater => POST /mater/add
 - editMater => POST /mater/editMater
@@ -29,6 +32,7 @@
 - deleteMaterById => DELETE /mater/remove/{id}
 - batchChangePriceApi => POST /mater/batchChangePrice（价格变更相关接口存在，实际由弹窗侧使用）
 - getMap / getMapNum / getPriceMap => 物料映射相关接口
+- GET /mater/bindings、POST /mater/binding、DELETE /mater/binding/{id} => 插件关系查询、保存和删除
 
 ## 代码习惯规范
 - 主要使用 script setup + TypeScript，页面逻辑直接写在 index.vue。

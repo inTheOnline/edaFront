@@ -36,7 +36,6 @@ import UserDrawer from "@/views/base/cust/components/UserDrawer.vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import { useDictStore } from "@/stores/modules/dict";
-import { de } from "element-plus/es/locale";
 
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);

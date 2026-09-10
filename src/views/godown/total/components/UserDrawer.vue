@@ -48,7 +48,6 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive,onMounted} from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import { de } from "element-plus/es/locale";
 import {useAuthStore} from '@/stores/modules/auth'
 import {useDictStore} from '@/stores/modules/dict'
 const authStore = useAuthStore();

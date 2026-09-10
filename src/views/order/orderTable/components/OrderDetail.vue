@@ -56,7 +56,6 @@ import { getOrderDetail } from "@/api/modules/order"
 import { ColumnProps } from "@/components/ProTable/interface";
 import { useDictStore } from "@/stores/modules/dict";
 import {useAuthStore} from '@/stores/modules/auth'
-import { List } from '@element-plus/icons-vue/dist/types';
 
 const authStore = useAuthStore();
 const dictStore = useDictStore();
@@ -104,6 +103,6 @@ const visible = computed({
 })
 
 const sizeUp = function() {
-  return authStore.isExistence("price:look"); // 根据实际需求调整宽度阈值
+  return authStore.isExistence("price:view"); // 根据实际需求调整宽度阈值
 }
 </script>

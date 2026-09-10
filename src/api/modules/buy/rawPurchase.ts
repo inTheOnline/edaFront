@@ -4,6 +4,7 @@ import type {
   IncomingBatchPayload,
   OrderItemBatchPayload,
   RawMaterOption,
+  RawMaterRelation,
   RawPurchaseIncoming,
   RawPurchaseItem,
   RawPurchaseOption,
@@ -15,6 +16,26 @@ import type {
 
 export const getRawMaterOptions = () => {
   return http.get<RawMaterOption[]>("/buy/rawPurchase/rawMater/options");
+};
+
+export const getRawMaterPage = (params: RawPurchaseQuery<RawMaterRelation>) => {
+  return http.post<RawPurchasePageResult<RawMaterRelation>>("/buy/rawPurchase/rawMater/page", params);
+};
+
+export const addRawMater = (data: RawMaterRelation) => {
+  return http.post<ResultData>("/buy/rawPurchase/rawMater/add", data);
+};
+
+export const editRawMater = (data: RawMaterRelation) => {
+  return http.put<ResultData>("/buy/rawPurchase/rawMater/edit", data);
+};
+
+export const deleteRawMater = (id: number) => {
+  return http.delete<ResultData>(`/buy/rawPurchase/rawMater/delete/${id}`);
+};
+
+export const deleteBatchRawMater = (ids: number[]) => {
+  return http.post<ResultData>("/buy/rawPurchase/rawMater/deleteBatch", ids);
 };
 
 export const getRequisitionPage = (params: RawPurchaseQuery<RawPurchaseRequisition>) => {

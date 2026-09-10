@@ -14,6 +14,8 @@
     >
       <template #tableHeader="scope">
         <el-button type="primary" class="hero-btn hero-btn--primary" :icon="CirclePlus" @click="openDrawer('新增')">新增外发表</el-button>
+        <el-button type="success" class="hero-btn" :icon="Tickets" @click="openOrderDialog()">开委外单</el-button>
+        <el-button type="warning" class="hero-btn" :icon="Tickets" @click="openReturnOrderDialog()">开退货单</el-button>
         <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Upload" @click="openBatchDialog">批量增加</el-button>
         <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Download" @click="exportExcel">导出 Excel</el-button>
         <el-button
@@ -55,6 +57,8 @@
       <template #operation="{ row }">
         <el-button type="primary" link :icon="View" @click="openViewDialog(row)">查看</el-button>
         <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', row)">编辑</el-button>
+        <el-button v-if="row.printNum" type="success" link :icon="Tickets" @click="openSavedOrder(row)">{{ isReturnOrder(row) ? "退货单编辑" : "整单编辑" }}</el-button>
+        <el-button v-if="row.printNum" type="success" link :icon="Printer" @click="printSavedOrder(row)">打印</el-button>
         <el-button type="danger" link :icon="Delete" @click="openDeleteDialog([row])">删除</el-button>
       </template>
     </ProTable>
@@ -62,12 +66,14 @@
     <UserDrawer ref="drawerRef" />
     <BatchAddDialog ref="batchDialogRef" />
     <OutbackDetailDialog ref="detailDialogRef" @confirm-delete="confirmDelete" />
+    <OrderDialog ref="orderDialogRef" />
+    <ReturnOrderDialog ref="returnOrderDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, h, nextTick, onMounted, reactive, ref, watch } from "vue";
-import { CircleClose, CirclePlus, Delete, Download, EditPen, Upload, View } from "@element-plus/icons-vue";
+import { CircleClose, CirclePlus, Delete, Download, EditPen, Printer, Tickets, Upload, View } from "@element-plus/icons-vue";
 import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
 import * as XLSX from "xlsx";
 import ProTable from "@/components/ProTable/index.vue";
@@ -77,6 +83,8 @@ import { useDictStore } from "@/stores/modules/dict";
 import BatchAddDialog from "./components/BatchAddDialog.vue";
 import OutbackDetailDialog from "./components/OutbackDetailDialog.vue";
 import UserDrawer from "./components/UserDrawer.vue";
+import OrderDialog from "./components/OrderDialog.vue";
+import ReturnOrderDialog from "./components/ReturnOrderDialog.vue";
 import {
   createOutformApi,
   createOutformBatchApi,
@@ -106,6 +114,8 @@ const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const batchDialogRef = ref<InstanceType<typeof BatchAddDialog> | null>(null);
 const detailDialogRef = ref<InstanceType<typeof OutbackDetailDialog> | null>(null);
+const orderDialogRef = ref<InstanceType<typeof OrderDialog> | null>(null);
+const returnOrderDialogRef = ref<InstanceType<typeof ReturnOrderDialog> | null>(null);
 const supplierEnum = computed(() => dictStore.dictMap.sup || []);
 const materEnum = computed(() => dictStore.dictMap.mater || []);
 const batchSupplierOptions = ref<Array<{ label: string; value: string | number; callName?: string }>>([]);
@@ -364,6 +374,30 @@ const openBatchDialog = () => {
     getTableList: refreshOutformPage
   });
 };
+
+const openOrderDialog = (subcId?: number) => {
+  orderDialogRef.value?.open({
+    suppliers: batchSupplierOptions.value.length ? batchSupplierOptions.value : supplierEnum.value,
+    maters: materEnum.value,
+    subcId,
+    refresh: refreshOutformPage
+  });
+};
+
+const openReturnOrderDialog = (subcId?: number) => {
+  returnOrderDialogRef.value?.open({
+    suppliers: batchSupplierOptions.value.length ? batchSupplierOptions.value : supplierEnum.value,
+    maters: materEnum.value,
+    subcId,
+    refresh: refreshOutformPage
+  });
+};
+
+const isReturnOrder = (row: OutformRecord) => row.subcRemark?.includes("退货返工") === true;
+const openSavedOrder = (row: OutformRecord) => isReturnOrder(row) ? openReturnOrderDialog(row.subcId) : openOrderDialog(row.subcId);
+const printSavedOrder = (row: OutformRecord) => isReturnOrder(row)
+  ? returnOrderDialogRef.value?.print(row.subcId)
+  : orderDialogRef.value?.print(row.subcId);
 
 const handleRowClick = (row: OutformRecord) => {
   proTableRef.value?.element?.toggleRowSelection(row);

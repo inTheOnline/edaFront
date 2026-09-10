@@ -38,7 +38,7 @@
 <script lang="ts" setup>
 import { ref, reactive, computed, toRefs,onMounted } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
-import { getAllSup,addSup,delectSups } from "@/api/modules/sup";
+import { getAllSup, addSup, delectSups, alterSup } from "@/api/modules/sup";
 import { getStateApi } from "@/api/modules/outgoing";
 import UserDrawer from "@/views/base/sup/components/UserDrawer.vue";
 import { CirclePlus, Delete, View, EditPen, Refresh } from "@element-plus/icons-vue";
@@ -54,7 +54,9 @@ const workMap = computed(() => {
   return dictStore.dictMap['work'] || [];
 });
 const stateMap = computed(() => {
-  return dictStore.dictMap['state'] || [];
+  return (dictStore.dictMap['state'] || []).map(item =>
+    item.label === "未合作" ? { ...item, tagType: "info" } : item
+  );
 });
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
@@ -68,7 +70,7 @@ const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
   {
     label: "供应商编号",
-    prop: "id",
+    prop: "supNum",
   },
   {
     label: "供应商名称",
@@ -84,6 +86,18 @@ const columns: ColumnProps[] = reactive([
   {
     label: "简称",
     prop: "callName"
+  },
+  {
+    label: "联系人",
+    prop: "contactName"
+  },
+  {
+    label: "联系电话",
+    prop: "contactPhone"
+  },
+  {
+    label: "地址",
+    prop: "address"
   },
   {
     label: "状态",
@@ -135,7 +149,7 @@ const deleteSupById = async(row) =>{
 }
 // 编辑供应商
 const editSup = async (row: any) => {
-  console.log("编辑数据", row);
+  await alterSup(row);
 };
 </script>
 

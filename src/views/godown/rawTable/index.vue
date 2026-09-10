@@ -1,6 +1,11 @@
 <template>
   <div class="container">
-    <div>
+    <RawModuleHeader
+      title="原材料入库记录"
+      description="按编号、规格和材质查询历史入库数据，并查看单条记录详情。"
+      :icon="Document"
+    />
+    <div class="table-panel">
       <ProTable
         :columns="columns"
         :request-api="getTable"
@@ -8,9 +13,9 @@
         :pagination="true"
         :tool-button="['refresh', 'setting', 'search']"
         row-key="id"
-        title="Form"
+        title="入库记录"
         ref="proTableRef"
-        striped=true
+        striped="true"
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 3, xl: 4 }"
       >
         <template #tableHeader="scope">
@@ -28,30 +33,34 @@
 </template>
 
 <script lang="ts" setup>
-import { ref,onMounted,reactive } from "vue";
+import { ref, reactive } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
-import { getTableModel,getTable } from "@/api/modules/raw";
+import { getTableModel, getTable } from "@/api/modules/raw";
 import { useDownload } from "@/hooks/useDownload";
 import UserDrawer from "./components/UserDrawer.vue";
-import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
-import { ElMessage, ElMessageBox } from "element-plus";
+import RawModuleHeader from "../components/RawModuleHeader.vue";
+import { Document, Download, View } from "@element-plus/icons-vue";
+import { ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
-const dataCallback = (data) => {    // 数据回调
-    return {
-      list: data.records,
-      total: data.total
-    };
+const dataCallback = (data) => {
+  // 数据回调
+  return {
+    list: data.records,
+    total: data.total,
+  };
 };
-onMounted(async () => {
-  
-});
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
-  { type: "index", label: "序号", width : 60, align: "center",
-  index : (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1 },
+  {
+    type: "index",
+    label: "序号",
+    width: 60,
+    align: "center",
+    index: (index) => (proTableRef.value.pageable.pageNum - 1) * proTableRef.value.pageable.pageSize + index + 1,
+  },
   {
     label: "原料编号",
     prop: "rawNum",
@@ -62,7 +71,7 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 150
+    width: 150,
   },
   {
     label: "规格",
@@ -74,7 +83,7 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 250
+    width: 250,
   },
   {
     label: "单位重量",
@@ -87,6 +96,10 @@ const columns: ColumnProps[] = reactive([
   {
     label: "类别",
     prop: "type",
+    enum: [
+      { label: "板料", value: 1 },
+      { label: "卷料", value: 2 },
+    ],
   },
   {
     label: "备注",
@@ -110,11 +123,34 @@ const openDrawer = async (title: string, row: Object = {}) => {
 // 导出原料列表
 const downloadFile = async () => {
   ElMessageBox.confirm("确认导出用户数据?", "温馨提示", { type: "warning" }).then(() =>
-    useDownload(getTableModel, "原料列表", proTableRef.value?.searchParam)
+    useDownload(getTableModel, "原料列表", proTableRef.value?.searchParam),
   );
 };
 </script>
 
 <style lang="scss" scoped>
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 16px;
+}
 
+.table-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.table-panel :deep(.ProTable) {
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .container {
+    gap: 12px;
+  }
+}
 </style>

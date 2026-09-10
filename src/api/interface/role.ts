@@ -9,4 +9,5 @@ export interface RoleDTO {
   id: number;
   enabled: boolean;
   access: number[];
+  extraPermissions?: Record<string, string[]>;
 }
