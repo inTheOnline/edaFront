@@ -1,5 +1,20 @@
 # outgoing/outback 外发回货页
 
+## 条目异常（少料 / 混料）
+- 勾选已提交且数量大于0的回执条目后，点击头部“录入异常”。每条独立填写发现日期、类型、数量、说明和非必填作证照片。
+- 少料包含缺料：回执、绑定入库和包装领料扣减相同数量；允许为0，不允许负数。
+- 混料分别录入原物料减少量和实际混入物料增加量，例如A减5、B增3。B在同一回执新增独立明细，不要求存在外发单；A绑定仓库时同步新增B的入库及领料流水。
+- 自动带出已有入库关联；无确定关联时可手动选择同物料的入库流水。绑定入库后领料必绑，无入库时领料禁止绑定。领料候选为同物料的包装出库（PACK_OUT）或未检出库（READY_OUT），可搜索单号、日期、相关人和备注。
+- 修改及新增条目备注保留原文并追加“YYYY-MM-DD发现少料/混料”和数量变化。
+- 回执数量始终显示修改后的实际数量；最近一次减少绿色、增加红色，悬停或键盘聚焦提示“⤵ 数量 / ⤴ 数量”（最近一次异常变化）。
+- 数量兼容数字字符串；缺失或无效值显示“—”，真实0仍显示0。异常请求编号复用`generateUUID`，不依赖安全上下文中的`crypto.randomUUID`。
+- 异常录入的“减少数量”仅接受正整数，无小数位。全站数字输入按钮统一由`src/styles/number-input.scss`隐藏，新增组件仍显式关闭controls。
+- “异常记录”查看历次前后数量和照片，照片归属于异常条目，不属于整张回执。每条最多9张JPG/PNG、每张10MB。
+- 有异常联动记录的条目不能从普通编辑、删除入口绕过三单联动；后续数量减少继续通过异常入口登记。
+- `ExceptionDialog.vue`负责录入和绑定，`ExceptionHistory.vue`负责记录与照片，`ExceptionQuantity.vue`负责实际数量与变化提示，接口集中在`exception.ts`。
+- 接口：`/outgoing/outback/exception`（POST）、`/options/{itemId}`、`/history/{itemId}`（GET）、`/photo/{itemId}`及`/photo/{itemId}/preview`（POST）；查看沿用stock:view，修改沿用stock:post。
+- 部署前先执行后端`sql/outgoing/20260917_outback_exception.sql`，本次没有自动迁移业务库。
+
 ## 阅读顺序
 - 先看 `index.vue`
 - 再看 `components/UserDrawer.vue`、`components/BatchAddDialog.vue`、`components/OutItemSelector.vue`
@@ -24,6 +39,8 @@
 - 选择器表格支持整行点击选中
 
 ## 批量选择规则
+- 批量新增状态固定为 `901`（已提交），界面不可修改，提交请求和后端保存均固定使用该状态。
+- 外发明细选择器传 `onlyPending: true`，后端先筛选未回数量大于 0 的明细再分页，总数也只统计可选记录；前端不再对分页结果二次过滤。
 - `批量增加 -> 选择外发明细` 支持多选
 - 一次确认可将多条外发明细批量带回到批量新增表格
 - 自动去重已选项（按 `outItemId`）
@@ -41,3 +58,5 @@
 - `/outgoing/outback/update`
 - `/outgoing/outback/delete`
 - `/outgoing/outback/batch-create`
+
+- 外发明细选择弹窗的单号、物料编码和物料名称搜索均支持回车，输入法选词时不触发查询。

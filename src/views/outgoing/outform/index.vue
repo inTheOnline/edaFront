@@ -139,7 +139,7 @@ const dataCallback = (data: { records: OutformRecord[]; total: number }) => ({
   total: data.total
 });
 
-const isEmptyValue = (value: unknown) => value === undefined || value === null || value === "";
+const isEmptyValue = (value: unknown) => value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length);
 
 const isSameValue = (left: unknown, right: unknown) => String(left) === String(right);
 
@@ -190,7 +190,7 @@ const filterRecordsBySearch = (ignoreKey: "supId" | "materId" | "state") =>
     return (
       (ignoreKey === "supId" || isEmptyValue(selectedSupId.value) || isSameValue(item.supId, selectedSupId.value)) &&
       (ignoreKey === "materId" || isEmptyValue(selectedMaterId.value) || isSameValue(materValue, selectedMaterId.value)) &&
-      (ignoreKey === "state" || isEmptyValue(selectedState.value) || isSameValue(item.state, selectedState.value))
+      (ignoreKey === "state" || isEmptyValue(selectedState.value) || (Array.isArray(selectedState.value) ? selectedState.value.some(value => isSameValue(item.state, value)) : isSameValue(item.state, selectedState.value)))
     );
   });
 
@@ -210,6 +210,7 @@ const dynamicSupplierEnum = computed<EnumProps[]>(() => {
 
 const dynamicMaterEnum = computed<EnumProps[]>(() => {
   if (!shouldUseRecordOptions.value) return materEnum.value as EnumProps[];
+  const ranks = new Map(materEnum.value.map((item, index) => [String(item.value), index]));
   return buildUniqueOptions(
     filterRecordsBySearch("materId"),
     getMaterialValue,
@@ -222,7 +223,7 @@ const dynamicMaterEnum = computed<EnumProps[]>(() => {
         num
       };
     }
-  );
+  ).sort((a,b)=>(ranks.get(String(a.value))??Number.MAX_SAFE_INTEGER)-(ranks.get(String(b.value))??Number.MAX_SAFE_INTEGER));
 });
 
 const dynamicStateEnum = computed<EnumProps[]>(() => {
@@ -239,7 +240,7 @@ const dynamicStateEnum = computed<EnumProps[]>(() => {
 });
 
 const optionIncludesValue = (options: EnumProps[], value: unknown) =>
-  isEmptyValue(value) || options.some(item => isSameValue(item.value, value));
+  isEmptyValue(value) || (Array.isArray(value) ? value.every(selected => options.some(item => isSameValue(item.value, selected))) : options.some(item => isSameValue(item.value, value)));
 
 const clearInvalidSearchValue = (preserveKey?: "supId" | "materId" | "state") => {
   const param = searchParam.value;
@@ -291,7 +292,7 @@ const columns: ColumnProps[] = reactive([
   {
     prop: "subcNum",
     label: "外发单号",
-    minWidth: 160,
+    minWidth: 120,
     search: {
       el: "input",
       props: { placeholder: "请输入外发单号" }
@@ -300,7 +301,7 @@ const columns: ColumnProps[] = reactive([
   {
     prop: "supId",
     label: "供应商",
-    minWidth: 140,
+    minWidth: 100,
     enum: dynamicSupplierEnum,
     search: {
       el: "select",
@@ -310,7 +311,7 @@ const columns: ColumnProps[] = reactive([
   {
     prop: "materId",
     label: "物料编码",
-    minWidth: 140,
+    minWidth: 100,
     enum: dynamicMaterEnum,
     fieldNames: { label: "num", value: "value" },
     search: {
@@ -349,7 +350,7 @@ const columns: ColumnProps[] = reactive([
   },
   { prop: "subcRemark", label: "整单备注", minWidth: 180 },
   { prop: "remark", label: "行备注", minWidth: 180 },
-  { prop: "operation", label: "操作", fixed: "right", width: 220 }
+  { prop: "operation", label: "操作", fixed: "right", width: 330 }
 ]);
 
 const openDrawer = (title: string, row: Partial<OutformRecord> = {}) => {

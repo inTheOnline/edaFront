@@ -17,6 +17,7 @@
     >
       <template #tableHeader>
         <el-button type="primary" :icon="CirclePlus" @click="openEditor()">新增{{ activeTypeLabel }}</el-button>
+        <el-button v-if="activeType === 'pvc'" type="primary" plain @click="relationRef?.open()">物料关系维护</el-button>
       </template>
       <template #operation="{ row }">
         <el-button type="primary" link :icon="EditPen" @click="openEditor(row)">编辑</el-button>
@@ -24,6 +25,7 @@
       </template>
     </ProTable>
 
+    <PvcRelationDialog ref="relationRef" />
     <el-dialog
       v-model="editorVisible"
       :title="`${form.id ? '编辑' : '新增'}${activeTypeLabel}`"
@@ -61,6 +63,8 @@ import { computed, reactive, ref } from "vue";
 import { CirclePlus, Delete, EditPen } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from "element-plus";
 import ProTable from "@/components/ProTable/index.vue";
+import PvcRelationDialog from "./components/PvcRelationDialog.vue";
+const relationRef = ref<InstanceType<typeof PvcRelationDialog>>();
 import {
   deleteAssistMater,
   getAssistMaterPage,

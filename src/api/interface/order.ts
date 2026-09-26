@@ -1,8 +1,8 @@
 export interface Order {
   orderNum: string;
   remark: string;
-  custId: number;           // 客户ID
-  custName: string;         // 客户名称
+  custId: number; // 客户ID
+  custName: string; // 客户名称
   createUserId: number;
   createUserName: string;
   maters: OrderMaterDetail[];
@@ -16,10 +16,13 @@ export interface OrderMaterDetail {
   totalNumber: number;
   alreadyNumber?: number;
   notAlreadyNumber?: number;
+  price?: number | null;
+  amount?: number | null;
+  custOrderItemId?: number;
   remark?: string;
 }
-export interface Order_mater{
-    materId:number;
-    totalNumber:number;
-    remark:string;
+export interface Order_mater {
+  materId: number;
+  totalNumber: number;
+  remark: string;
 }

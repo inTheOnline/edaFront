@@ -5,6 +5,9 @@
     v-model.trim="_searchParam[column.search?.key ?? handleProp(column.prop!)]"
     :data="column.search?.el === 'tree-select' ? columnEnum : []"
     :options="['cascader', 'select-v2'].includes(column.search?.el!) ? columnEnum : []"
+    @keydown.capture="handleSelectEnter"
+    @keydown="stopSelectEnter"
+    @visible-change="dropdownVisible = $event"
   >
     <template v-if="column.search?.el === 'cascader'" #default="{ data }">
       <span>{{ data[fieldNames.label] }}</span>
@@ -32,6 +35,33 @@ interface SearchFormItem {
   searchParam: { [key: string]: any };
 }
 const props = defineProps<SearchFormItem>();
+const emit = defineEmits<{ search: [] }>();
+const dropdownVisible = ref(false);
+const isSelection = computed(
+  () =>
+    !props.column.search?.render &&
+    ["select", "select-v2", "tree-select", "cascader", "date-picker", "time-picker", "time-select"].includes(
+      props.column.search?.el ?? ""
+    )
+);
+
+// 确认选项的回车不能继续冒泡触发表单搜索。
+const stopSelectEnter = (event: KeyboardEvent) => {
+  if (isSelection.value && event.key === "Enter") event.stopPropagation();
+};
+
+// 下拉展开时由组件确认选项，收起且已有选中值时回车搜索。
+const handleSelectEnter = (event: KeyboardEvent) => {
+  if (!isSelection.value || event.key !== "Enter") return;
+  if (event.isComposing || event.keyCode === 229 || event.repeat) return;
+  const input = event.target as HTMLElement;
+  if (dropdownVisible.value || input.getAttribute("aria-expanded") === "true") return;
+  const value = props.searchParam[props.column.search?.key ?? handleProp(props.column.prop!)];
+  if (value == null || value === "" || (Array.isArray(value) && !value.length)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  emit("search");
+};
 
 // Re receive SearchParam
 const _searchParam = computed(() => props.searchParam);

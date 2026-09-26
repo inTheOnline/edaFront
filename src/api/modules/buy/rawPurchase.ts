@@ -11,23 +11,33 @@ import type {
   RawPurchasePageResult,
   RawPurchaseQuery,
   RawPurchaseRequisition,
-  RequisitionBatchPayload
+  RequisitionBatchPayload,
 } from "@/api/interface/buy/rawPurchase";
 
 export const getRawMaterOptions = () => {
   return http.get<RawMaterOption[]>("/buy/rawPurchase/rawMater/options");
 };
 
-export const getRawMaterPage = (params: RawPurchaseQuery<RawMaterRelation>) => {
-  return http.post<RawPurchasePageResult<RawMaterRelation>>("/buy/rawPurchase/rawMater/page", params);
+// 毛重、废料重历史按 g 存储，页面统一用 kg；其他重量原本就是 kg。
+const relationWeight = (row: RawMaterRelation, factor: number): RawMaterRelation => ({
+  ...row,
+  grossWeight: row.grossWeight == null ? undefined : Number((row.grossWeight * factor).toPrecision(12)),
+  utilBadWeight: row.utilBadWeight == null ? undefined : Number((row.utilBadWeight * factor).toPrecision(12)),
+});
+export const getRawMaterByProduct = async (materId: string | number) => {
+  const response = await http.get<RawMaterRelation | null>(`/buy/rawPurchase/rawMater/product/${materId}`);
+  return response.data ? relationWeight(response.data, 0.001) : null;
 };
-
+export const getRawMaterPage = async (params: RawPurchaseQuery<RawMaterRelation>) => {
+  const response = await http.post<RawPurchasePageResult<RawMaterRelation>>("/buy/rawPurchase/rawMater/page", params);
+  response.data.records = response.data.records.map((row) => relationWeight(row, 0.001));
+  return response;
+};
 export const addRawMater = (data: RawMaterRelation) => {
-  return http.post<ResultData>("/buy/rawPurchase/rawMater/add", data);
+  return http.post<ResultData>("/buy/rawPurchase/rawMater/add", relationWeight(data, 1000));
 };
-
 export const editRawMater = (data: RawMaterRelation) => {
-  return http.put<ResultData>("/buy/rawPurchase/rawMater/edit", data);
+  return http.put<ResultData>("/buy/rawPurchase/rawMater/edit", relationWeight(data, 1000));
 };
 
 export const deleteRawMater = (id: number) => {

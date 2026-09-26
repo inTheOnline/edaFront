@@ -59,6 +59,9 @@
         </template>
         <template #effStatus="{ row }"><el-tag :type="effTagTypes[row.effStatus] || 'info'" :class="`eff-tag-${row.effStatus}`">{{ effStatus[row.effStatus] || row.effStatus }}</el-tag></template>
         <template #effReason="{ row }">{{ row.effStatus === 'NORMAL' ? '' : row.effReason }}</template>
+        <template #operatorId="{ row }">
+          {{ staffLoading ? '加载中' : staffLoadFailed ? '加载失败' : staffNames.get(String(row.operatorId)) || '--' }}
+        </template>
         <template #operation="scope">
           <el-button v-if="auth.isExistence('production:eff:view')" type="primary" link @click.stop="effDrawer?.open(scope.row.id)">{{ ['PENDING', 'UNKNOWN', 'INVALID'].includes(scope.row.effStatus) ? '核实' : '效率依据' }}</el-button>
           <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">查看</el-button>
@@ -119,6 +122,9 @@ const map =ref()
 
 const materEnum = computed(() => dictStore.dictMap["mater"]);
 const staffEnum = computed(() => dictStore.dictMap["staff"]);
+const staffLoading = ref(!staffEnum.value?.length);
+const staffLoadFailed = ref(false);
+const staffNames = computed(() => new Map((staffEnum.value || []).map(item => [String(item.value), item.label])));
 // 数据回调处理
 const dataCallback = (data) => {
   return {
@@ -137,12 +143,21 @@ const handleRowClick = async (row: any) => {
 }
 // 初始化加载字典
 onMounted(async () => {
-  // 加载产品和员工字典（与数据库关联的外键表）
-  if (!materEnum.value?.length) {
-    await dictStore.loadDicts(["mater", "staff"]);
-  }
-  map.value = (await getMapNum()).data;
-
+  // 分别检查字典缓存，员工加载状态不受产品请求影响。
+  await Promise.allSettled([
+    dictStore.loadDict("mater"),
+    (async () => {
+      try {
+        const staff = await dictStore.loadDict("staff");
+        staffLoadFailed.value = !Array.isArray(staff);
+      } catch {
+        staffLoadFailed.value = true;
+      } finally {
+        staffLoading.value = false;
+      }
+    })(),
+    getMapNum().then(({ data }) => { map.value = data; })
+  ]);
 });
 
 // watch(

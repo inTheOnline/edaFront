@@ -1,50 +1,57 @@
-﻿# buy/buyForm 办公用品请购页
+# 办公用品库存与领用
 
-## 阅读顺序
-- 修改本目录代码前，先读本 README.md。
-- 如果本目录下还有 components、config、drawer、dialog 等文件，先读这些实现再改动。
-- 当前目录被上层页面复用时，也要顺手检查调用方传入的参数。
+## 业务范围
+- 页面仍使用原 buy/buyForm 路由，保留 ERP 公共菜单、头部、标签栏及底部。
+- 使用系统 `--el-color-primary` 等主题变量，默认青绿色 #009688；不为用品添加装饰图标。
+- 四个业务标签：用品库存、请购管理、采购入库、领用记录。
+- 旧 office_purchase / office_purchase_record 都是测试数据；本次不删除、不迁入新库存，页面改用独立台账。
 
-## 功能内容
-- 提供办公用品请购单分页查询与状态跟踪。
-- 页面视觉升级为「请购记录工作台」：支持卡片视图和列表视图切换，卡片视图包含顶部统计、状态看板、待办项和最近动态，列表视图保留 ProTable 明细表。
-- 支持申请请购、编辑、查看、审核通过、驳回、采购录入（单条/批量）、领取完成、取消。
-- 卡片视图内每条记录也提供与列表一致的操作按钮，并支持本页多选、批量采购录入和批量删除。
-- 支持加急请购（fast），驳回理由展示（rejectReason）。
-- 按业务权限控制按钮显示：
-  - `buy:apply:assist` 代请购
-  - `buy:purchase` 采购录入
-  - `buy:audit` 审核
-  - `buy:view:all` 查看全部
+## 业务规则
+- 行政统一采购，员工领用。一张请购或采购单可以包含多种用品。
+- 直接发放：填写领取人、用途和用品数量；关联请购单选填。
+- 关联发放：服务端以请购单确定领取人、用途和允许发放的用品；不允许超出剩余申请数量。
+- 请购提交、标记待领取、采购下单都不改变、不预留库存。
+- 实际到货入库才增加库存，实际确认发放才扣库存，支持分批入库、部分发放。
+- 所有库存变动生成不可直接编辑或删除的流水，保留经办人、领取人、用途、数量、变动后库存及关联单据。
+- 入库登记支持期初等无采购单入库，必须填写说明；正常采购到货从采购单进入登记。
+- 请购可取消剩余数量，已发放记录和库存不回退。
+- 已发生出入库的用品允许改名；规格和单位不可修改。历史记录关联用品 ID，统一显示最新名称。分类、位置和最低库存可以调整。
 
-## 技术实现
-- 页面核心：`ProTable + PurchaseDrawer + PurchaseRecordDialog + BatchPurchaseDialog`。
-- `PurchaseDrawer` 新增 `fast` 并隐藏 `userId`，提交时由前端强制写当前登录用户。
-- 无代请购权限时，前端锁定 `applyUserId=当前用户`。
-- 列表状态统一使用：`待审核/已驳回/待采购/已采购/已完成/已取消`。
-- 看板、统计、时间轴都基于当前表格数据回调生成；待办项优先读取 `getPurchaseTodo`，接口异常时用当前列表数据兜底。
-- 最近动态和状态看板统一按请购状态显示颜色。
+## 权限与通知
+- 沿用 `buy:purchase` 作为行政采购、用品档案、入库、发放权限；前后端均校验。
+- 普通员工可以查看用品库存，提交自己的请购，只能查看自己的请购和领用流水，不能查询采购金额。
+- 页面待办和全局提醒共用 `officeNotice` store。App 挂载无布局的 OfficeNotice，公共导航外观不变。
+- 已登录且具备采购权限的人员，每30秒获取待处理请购；可见页面收到新单时使用站内通知提醒，点击进入请购标签。
+- 页面隐藏时暂停查询，退出登录时停止。通知仅为站内提示，不发送短信、邮件或外部消息。
 
-## 后端 API
-- 现有：
-  - `getPurchaseList` => `POST /officePurchase/getAll`
-  - `addPurchase` => `POST /officePurchase/add`
-  - `updatePurchase` => `PUT /officePurchase/edit`
-  - `deleteBatchPurchase` => `POST /officePurchase/deleteBatch`
-  - `deletePurchase` => `DELETE /officePurchase/delete/{id}`
-- 新增联调（待后端提供）：
-  - `passPurchase` => `POST /officePurchase/audit/pass`
-  - `rejectPurchase` => `POST /officePurchase/audit/reject`
-  - `cancelPurchase` => `POST /officePurchase/cancel`
-  - `receivePurchase` => `POST /officePurchase/receive`
-  - `addPurchaseRecord` => `POST /officePurchaseRecord/add`
-  - `addBatchPurchaseRecordByPurchaseIds` => `POST /officePurchaseRecord/addBatchByPurchaseIds`
-  - `getPurchaseTodo` => `GET /officePurchase/todo`
+## 文件与 API
+- `index.vue`：ProTable 分页列表、功能标签、查询与操作入口。
+- `components/SupplyDrawer.vue`：用品档案、请购、采购、入库及统一发放抽屉。
+- `components/OfficeNotice.vue`：跨页面请领通知，不输出可见布局元素。
+- `src/api/modules/buy/officeSupply.ts`：接口及类型。
+- 后端：OfficeSupplyController / OfficeSupplyService，MyBatis-Plus Mapper，独立六张 office_* 表。
+- `GET /officeSupply/options`、`GET /officeSupply/stock`、`POST /officeSupply/supply`。
+- `GET /officeSupply/requests`、`POST /officeSupply/request`、`GET /officeSupply/request/{id}`。
+- `POST /officeSupply/request/{id}/ready`、`POST /officeSupply/request/{id}/cancel`。
+- `GET /officeSupply/orders`、`POST /officeSupply/order`、`GET /officeSupply/order/{id}`。
+- `POST /officeSupply/receipt`、`POST /officeSupply/issue`、`GET /officeSupply/flows`。
+- 所有分页保留后端总数，每页最多100条，不能用当前页长度替代总数。
 
-## 代码习惯规范
-- 主要使用 script setup + TypeScript，页面逻辑直接写在 index.vue。
-- 列表页统一围绕 ProTable 组织，列定义集中在 columns 中。
-- 新增/查看/编辑通过抽屉，采购录入通过弹窗。
-- 字典数据优先走 `dictStore.loadDicts`，本页申请人与操作人都按 `user` 字典映射。
-- 两种视图需要保持功能独立，新增操作按钮时要同步评估卡片视图和列表视图。
-- 修改后如变更接口、状态流转、权限点，需同步更新本 README。
+## 上线顺序与验证
+1. 在目标数据库执行后端 `sql/buy/20260911_office_supply.sql`，只创建新表。
+2. 发布新后端，再发布前端。仅修改源码不会让已经运行的旧 jar 自动提供新接口。
+3. 新增用品，通过实际期初入库建立库存，不根据旧测试单推算。
+4. 核对人事角色已有 `buy:purchase` 权限以及原办公用品页面权限。
+- 后端测试：`mvn -Dtest=OfficeSupplyMysqlTest -Doffice.mysql=true test`。仅限配置指向本机 MySQL；自动创建、清理隔离测试库，不写入 eda_erp 库。
+- 覆盖直接与关联发放、部分发放、分批入库、超量拒绝、权限、分页总数、事务回滚和并发防超发。
+- 前端：Vite 打包、vue-tsc 检查；仓库其他模块已有类型错误需单独处理。
+- `tmp/office-preview` 为使用真实页面组件和示例接口的独立交互验证工具，不是业务数据，也不是生产入口。
+
+- 请购管理和采购入库的状态搜索支持多选，通过逗号分隔状态请求后端 IN 查询。
+
+## 2026-09-15 调整
+- 采购列表“更多”提供编辑、删除，仅待入库单据显示；后端同步禁止部分入库和已入库单据编辑、删除。删除有确认提示，保留数据库记录。
+- 接口：`POST /officeSupply/order/{id}/edit`、`POST /officeSupply/order/{id}/delete`。编辑复用采购抽屉。
+- 采购单价支持三位小数，明细金额、合计及列表金额统一显示三位小数。
+- 新建请购的用品选择和数量并排一行；办公用品抽屉所有数字输入移除加减按钮，数字右对齐。
+- 先执行后端 `sql/buy/20260915_office_supply.sql`，再发布前后端。

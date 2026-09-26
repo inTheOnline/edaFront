@@ -58,7 +58,7 @@ export namespace RouteManage {
     parentPath?: string;
     previousParentId?: RouteId | null;
     previousParentPath?: string;
-    sort: number;
+    targetIndex: number;
     path: string;
   }
 

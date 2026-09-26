@@ -49,7 +49,7 @@
         </div>
       </el-form-item>
       <el-form-item label="回货数量" prop="number">
-        <el-input-number v-model="form.number" :min="1" style="width: 100%" />
+        <el-input-number v-model="form.number" :min="isView ? 0 : 1" style="width: 100%" />
       </el-form-item>
       <div v-if="negativeHint" class="negative-alert">
         提交后 {{ negativeHint }} 的未回数量将为负数，请确认是否继续。

@@ -75,7 +75,7 @@
         </div>
 
         <el-scrollbar class="tree-scroll">
-          <div v-loading="loading" class="tree-shell">
+          <div v-loading="loading || moveSaving" class="tree-shell">
             <RouteTopologyBranch
               :nodes="treeData"
               :expanded-keys="expandedKeys"
@@ -256,6 +256,7 @@ interface DragState {
 
 const authStore = useAuthStore();
 const loading = ref(false);
+const moveSaving = ref(false);
 const editorSaving = ref(false);
 const apiMode = ref<"live" | "fallback">("live");
 const treeData = ref<RouteTreeViewNode[]>([]);
@@ -595,32 +596,6 @@ const collectAncestorKeys = (nodes: RouteTreeViewNode[], nodeKey: string, path: 
   return [];
 };
 
-const syncTreeStructure = (nodes: RouteTreeViewNode[], parent: RouteTreeViewNode | null = null) => {
-  nodes.forEach((node, index) => {
-    node.parentId = parent?.id ?? parent?.nodeKey ?? null;
-    node.sort = (index + 1) * 10;
-    if (node.children?.length) syncTreeStructure(node.children, node);
-  });
-};
-
-const resolveSortForLocation = (location: RouteLocation) => {
-  const previousNode = location.siblings[location.index - 1];
-  const nextNode = location.siblings[location.index + 1];
-  const previousSort = typeof previousNode?.sort === "number" ? previousNode.sort : null;
-  const nextSort = typeof nextNode?.sort === "number" ? nextNode.sort : null;
-
-  if (previousSort == null && nextSort == null) return 10;
-  if (previousSort == null && nextSort != null) return nextSort - 10;
-  if (previousSort != null && nextSort == null) return previousSort + 10;
-  if (previousSort != null && nextSort != null) {
-    const gap = nextSort - previousSort;
-    if (gap > 1) return previousSort + Math.floor(gap / 2);
-    return previousSort + 1;
-  }
-
-  return location.node.sort ?? (location.index + 1) * 10;
-};
-
 const cleanupDragState = () => {
   draggedKey.value = "";
   childHoverKey.value = "";
@@ -817,7 +792,8 @@ const submitEditor = async () => {
 const persistMove = async (
   movedNode: RouteTreeViewNode,
   previousParent: RouteTreeViewNode | null,
-  nextParent: RouteTreeViewNode | null
+  nextParent: RouteTreeViewNode | null,
+  targetIndex: number
 ) => {
   const payload: RouteManage.MoveRoutePayload = {
     id: movedNode.id ?? movedNode.nodeKey,
@@ -825,10 +801,11 @@ const persistMove = async (
     parentPath: nextParent?.path ?? "",
     previousParentId: previousParent?.id ?? previousParent?.nodeKey ?? null,
     previousParentPath: previousParent?.path ?? "",
-    sort: movedNode.sort ?? 0,
+    targetIndex,
     path: movedNode.path
   };
 
+  moveSaving.value = true;
   try {
     const { data } = await moveRoute(payload);
     lastResult.value = JSON.stringify({ action: "move", payload, result: data }, null, 2);
@@ -839,6 +816,9 @@ const persistMove = async (
     lastResult.value = JSON.stringify({ action: "move", payload, error: error?.message || "move failed" }, null, 2);
     lastSubmitStatus.value = "fallback";
     ElMessage.warning(error?.message || "移动请求未成功落库");
+    await loadRouteTree({ preferredId: payload.id });
+  } finally {
+    moveSaving.value = false;
   }
 };
 
@@ -879,9 +859,8 @@ const handleSortEnd = async ({ nodeKey }: { nodeKey: string }) => {
     return;
   }
 
-  currentLocation.node.sort = resolveSortForLocation(currentLocation);
   const previousParent = dragState.fromParentKey ? nodeMap.value[dragState.fromParentKey] ?? null : null;
-  await persistMove(currentLocation.node, previousParent, currentLocation.parent);
+  await persistMove(currentLocation.node, previousParent, currentLocation.parent, currentLocation.index);
   cleanupDragState();
 };
 
@@ -922,11 +901,9 @@ const handleDropAsChild = async (parentKey: string) => {
     expandedKeys.value = [...expandedKeys.value, targetLocation.node.nodeKey];
   }
 
-  const movedLocation = findNodeLocation(treeData.value, movedNode.nodeKey);
-  if (movedLocation) movedNode.sort = resolveSortForLocation(movedLocation);
   suppressNextSortEnd.value = true;
   childHoverKey.value = "";
-  await persistMove(movedNode, previousParent, targetLocation.node);
+  await persistMove(movedNode, previousParent, targetLocation.node, targetLocation.node.children.length - 1);
   cleanupDragState();
 };
 

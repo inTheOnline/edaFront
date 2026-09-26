@@ -13,6 +13,7 @@
       @row-click="handleRowClick"
     >
       <template #tableHeader="scope">
+        <el-button type="warning" plain :disabled="!scope.isSelected" @click="openException">录入异常</el-button>
         <el-button type="primary" class="hero-btn hero-btn--primary" :icon="CirclePlus" @click="openDrawer('新增')">新增回执</el-button>
         <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Upload" @click="openBatchDialog">批量增加</el-button>
         <el-button type="primary" plain class="hero-btn hero-btn--ghost" :icon="Download" @click="exportExcel">导出 Excel</el-button>
@@ -22,7 +23,7 @@
           class="hero-btn hero-btn--danger"
           :icon="Delete"
           :disabled="!scope.isSelected"
-          @click="deleteSelected(scope.selectedListIds)"
+          @click="deleteSelected(scope.selectedListIds.map(Number))"
         >
           批量删除
         </el-button>
@@ -48,13 +49,17 @@
         </div>
       </template>
 
+      <template #number="{ row }"><ExceptionQuantity :number="row.number" :delta="row.exceptionDelta" /></template>
       <template #operation="{ row }">
+        <el-button v-if="row.hasException" type="warning" link @click.stop="historyRef?.open(row.id)">异常记录</el-button>
         <el-button type="primary" link :icon="View" @click="openDrawer('查看', row)">查看</el-button>
-        <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', row)">编辑</el-button>
-        <el-button type="danger" link :icon="Delete" @click="deleteOne(row.id)">删除</el-button>
+        <el-button v-if="!row.hasException && row.outItemId" type="primary" link :icon="EditPen" @click="openDrawer('编辑', row)">编辑</el-button>
+        <el-button :disabled="row.hasException" type="danger" link :icon="Delete" @click="deleteOne(row.id)">删除</el-button>
       </template>
     </ProTable>
 
+    <ExceptionDialog ref="exceptionRef" :maters="materEnum" @saved="refreshAfterException" />
+    <ExceptionHistory ref="historyRef" :maters="materEnum" />
     <UserDrawer ref="drawerRef" />
     <BatchAddDialog ref="batchDialogRef" />
   </div>
@@ -70,6 +75,9 @@ import type { ColumnProps, EnumProps } from "@/components/ProTable/interface";
 import { useDictStore } from "@/stores/modules/dict";
 import BatchAddDialog from "./components/BatchAddDialog.vue";
 import UserDrawer from "./components/UserDrawer.vue";
+import ExceptionDialog from "./components/ExceptionDialog.vue";
+import ExceptionHistory from "./components/ExceptionHistory.vue";
+import ExceptionQuantity from "./components/ExceptionQuantity.vue";
 import {
   createOutbackApi,
   createOutbackBatchApi,
@@ -83,6 +91,10 @@ import {
   updateOutbackApi
 } from "../service";
 
+const exceptionRef = ref<InstanceType<typeof ExceptionDialog>>();
+const historyRef = ref<InstanceType<typeof ExceptionHistory>>();
+const openException = () => exceptionRef.value?.open(selectedList.value as OutbackRecord[]);
+const refreshAfterException = () => { cancelSelect(); proTableRef.value?.getTableList(); };
 const dictStore = useDictStore();
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
@@ -169,7 +181,7 @@ const columns: ColumnProps[] = reactive([
   },
   { prop: "outbackRemark", label: "整单备注", minWidth: 180 },
   { prop: "remark", label: "行备注", minWidth: 180 },
-  { prop: "operation", label: "操作", fixed: "right", width: 220 }
+  { prop: "operation", label: "操作", fixed: "right", width: 300 }
 ]);
 
 const openDrawer = (title: string, row: Partial<OutbackRecord> = {}) => {

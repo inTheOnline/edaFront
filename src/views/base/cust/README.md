@@ -31,3 +31,5 @@
 - 字典类枚举优先走 dictStore.loadDicts 或接口 enum，不要在页面里重复硬编码。
 - 导入导出优先复用 ImportExcel 和 useDownload。
 - 删除后通常调用 getTableList 或 reset 刷新表格，保持现有交互一致。
+
+- 状态搜索支持多选，GET 请求按逗号序列化，后端按 IN 查询。

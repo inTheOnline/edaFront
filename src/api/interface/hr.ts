@@ -20,11 +20,11 @@ export interface Staff {
 export interface SalaryNorm { id?: number; staffId?: number; basicNorm?: number; overNorm?: number; nightNorm?: number; otherNorm?: number; postNorm?: number; bonus?: number; eatCutpay?: number; fixedDeduction?: number; social?: number; remark?: string; }
 export interface SalaryNormEditRequest extends Omit<Partial<SalaryNorm>, "staffId"> {
   id: number;
-  changeReason: string;
-  effectiveMonth: string;
-  supervisorOpinion: string;
-  approverName: string;
-  approvalDate: string;
+  changeReason?: string;
+  effectiveMonth?: string;
+  supervisorOpinion?: string;
+  approverName?: string;
+  approvalDate?: string;
 }
 export interface SalaryNormChangeLog {
   id: number;

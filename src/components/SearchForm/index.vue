@@ -1,6 +1,6 @@
 <template>
   <div v-if="columns.length" class="card table-search">
-    <el-form ref="formRef" :model="searchParam"  @keydown.enter.prevent="search" >
+    <el-form ref="formRef" :model="searchParam"  @keydown.enter="handleEnter" @submit.prevent >
       <Grid ref="gridRef" :collapsed="collapsed" :gap="[20, 0]" :cols="searchCol">
         <GridItem v-for="(item, index) in columns" :key="item.prop" v-bind="getResponsive(item)" :index="index">
           <el-form-item>
@@ -13,7 +13,7 @@
               </el-space>
               <span>&nbsp;:</span>
             </template>
-            <SearchFormItem :column="item" :search-param="searchParam" />
+            <SearchFormItem :column="item" :search-param="searchParam" @search="search(searchParam)" />
           </el-form-item>
         </GridItem>
         <GridItem suffix>
@@ -54,6 +54,12 @@ const props = withDefaults(defineProps<ProTableProps>(), {
   columns: () => [],
   searchParam: () => ({})
 });
+
+const handleEnter = (event: KeyboardEvent) => {
+  if (event.isComposing || event.keyCode === 229 || event.repeat || event.defaultPrevented) return;
+  event.preventDefault();
+  props.search(props.searchParam);
+};
 
 // 获取响应式设置
 const getResponsive = (item: ColumnProps) => {

@@ -6,7 +6,7 @@
       <span>当前仅展示该供应商的外发明细</span>
     </div>
 
-    <div class="selector-toolbar">
+    <div class="selector-toolbar" @keydown.enter="!$event.isComposing && search()">
       <el-input v-model="query.subcNum" placeholder="外发单号" clearable />
       <el-input v-model="query.materNum" placeholder="物料编码" clearable />
       <el-input v-model="query.materName" placeholder="物料名称" clearable />
@@ -97,13 +97,14 @@ const fetchTableData = async () => {
     getOutformPageApi({
       pageNum: pageNum.value,
       pageSize: pageSize.value,
+      onlyPending: true,
       supId: lockedSupId.value || undefined,
       subcNum: query.subcNum || undefined,
       materNum: query.materNum || undefined,
       materName: query.materName || undefined
     })
   );
-  tableData.value = (data.records || []).filter(item => (item.notbackNumber || 0) > 0);
+  tableData.value = data.records || [];
   total.value = data.total || 0;
 };
 

@@ -1,5 +1,6 @@
 <template>
   <el-dialog v-model="visible" title="选择订单条目" width="82%" :close-on-click-modal="false">
+    <el-alert v-if="requiredMaterId != null" title="只能关联相同物料的订单，已关联订单不可重复选择" type="info" :closable="false" show-icon class="selection-tip" />
     <ProTable
       ref="tableRef"
       row-key="id"
@@ -45,7 +46,7 @@ const selectedRows = ref<any[]>([]);
 const stateOptions = computed(() => dictStore.dictMap.state || []);
 
 const columns: ColumnProps[] = reactive([
-  { type: "selection", width: 55, selectable: row => !isPlugin(row) && (allowMissing.value || !isRelationMissing(row)) },
+  { type: "selection", width: 55, selectable: row => !selectionDisabled(row) },
   { prop: "localTime", label: "创建时间", minWidth: 160 },
   { prop: "orderNum", label: "订单编号", minWidth: 160, search: { el: "input", props: { placeholder: "请输入订单号" } } },
   { prop: "custText", label: "客户", minWidth: 130 },
@@ -69,6 +70,14 @@ const handleSelectionChange = (rows: any[]) => {
 };
 
 const handleRowClick = (row: any) => {
+  if (isDifferentMater(row)) {
+    ElMessage.warning("同一条请购明细只能关联相同物料的订单");
+    return;
+  }
+  if (excludedIds.value.has(String(row.id))) {
+    ElMessage.warning("该订单已关联当前请购明细");
+    return;
+  }
   if (isPlugin(row)) {
     ElMessage.warning(`插件产品 ${row.materNum || row.materName || ""} 不能主动请购，请选择对应的主产品`);
     return;
@@ -83,9 +92,13 @@ const handleRowClick = (row: any) => {
 const relationMaterIds = ref(new Set<string>());
 const pluginMaterIds = ref(new Set<string>());
 const allowMissing = ref(false);
+const requiredMaterId = ref<string | number>();
+const excludedIds = ref(new Set<string>());
 const isRelationMissing = (row: any) => !allowMissing.value && !relationMaterIds.value.has(String(row.materId));
 const isPlugin = (row: any) => pluginMaterIds.value.has(String(row.materId));
-const rowClassName = ({ row }: any) => (isPlugin(row) || isRelationMissing(row) ? "relation-missing-row" : "");
+const isDifferentMater = (row: any) => requiredMaterId.value != null && String(row.materId) !== String(requiredMaterId.value);
+const selectionDisabled = (row: any) => isPlugin(row) || isRelationMissing(row) || isDifferentMater(row) || excludedIds.value.has(String(row.id));
+const rowClassName = ({ row }: any) => (isPlugin(row) || isRelationMissing(row) ? "relation-missing-row" : isDifferentMater(row) || excludedIds.value.has(String(row.id)) ? "selection-disabled-row" : "");
 
 const formatCustName = (custId?: string | number) => {
   const cust = dictStore.dictMap.cust?.find(item => String(item.value) === String(custId));
@@ -101,8 +114,10 @@ onMounted(() => {
   dictStore.loadDicts(["cust", "user", "state"]);
 });
 
-const open = async (materIds: Array<string | number> = [], allowRowsWithoutRaw = false) => {
+const open = async (materIds: Array<string | number> = [], allowRowsWithoutRaw = false, options: { materId?: string | number; excludedIds?: Array<string | number> } = {}) => {
   allowMissing.value = allowRowsWithoutRaw;
+  requiredMaterId.value = options.materId;
+  excludedIds.value = new Set((options.excludedIds || []).map(String));
   relationMaterIds.value = new Set(materIds.filter(value => value !== null && value !== undefined).map(String));
   selectedRows.value = [];
   const results = await Promise.all([...['cust', 'user', 'state'].map(type => dictStore.loadDict(type, { force: true })), getMaterBindings()]);
@@ -111,12 +126,17 @@ const open = async (materIds: Array<string | number> = [], allowRowsWithoutRaw =
   pluginMaterIds.value = new Set(bindings.map((row: any) => String(row.pluginMaterId)));
   visible.value = true;
   await nextTick();
+  tableRef.value?.element?.clearSelection();
   tableRef.value?.getTableList();
 };
 
 const confirm = () => {
   if (!selectedRows.value.length) {
     ElMessage.warning("请选择订单条目");
+    return;
+  }
+  if (selectedRows.value.some(selectionDisabled)) {
+    ElMessage.warning("所选订单包含不可关联的条目，请重新选择");
     return;
   }
   emit("confirm", selectedRows.value);
@@ -127,6 +147,10 @@ defineExpose({ open });
 </script>
 
 <style scoped>
+.selection-tip { margin-bottom: 12px; }
+:deep(.selection-disabled-row > td.el-table__cell) {
+  color: var(--el-text-color-disabled);
+}
 :deep(.relation-missing-row > td.el-table__cell) {
   background: #fef0f0 !important;
   color: var(--el-color-danger);

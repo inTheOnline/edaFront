@@ -56,7 +56,8 @@
               :icon="Delete"
               :disabled="Number(scope.row.alreadyNumber || 0) > 0"
               @click="handleDelete(scope.row)"
-            >删除</el-button>
+              >删除</el-button
+            >
           </span>
         </el-tooltip>
       </template>
@@ -72,7 +73,7 @@
     <el-dialog v-model="editDialogVisible" title="编辑订单物料" width="560px" destroy-on-close>
       <el-alert
         v-if="hasDelivered"
-        title="已有交货记录，只能修改订单总数和备注"
+        title="已有交货记录，可修改数量、备注及有权限的单价"
         type="warning"
         :closable="false"
         show-icon
@@ -84,16 +85,41 @@
         </el-form-item>
         <el-form-item label="客户" required>
           <el-select v-model="editForm.custId" :disabled="hasDelivered" filterable style="width: 100%">
-            <el-option v-for="item in dictStore.dictMap['cust'] || []" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option
+              v-for="item in dictStore.dictMap['cust'] || []"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="物料" required>
           <el-select v-model="editForm.materId" :disabled="hasDelivered" filterable style="width: 100%">
-            <el-option v-for="item in dictStore.dictMap['mater'] || []" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option
+              v-for="item in dictStore.dictMap['mater'] || []"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="订单总数" required>
-          <el-input-number v-model="editForm.totalNumber" :min="Math.max(1, Number(editForm.alreadyNumber || 0))" style="width: 100%" />
+          <el-input-number
+            v-model="editForm.totalNumber"
+            :min="Math.max(1, Number(editForm.alreadyNumber || 0))"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item v-if="canViewPrice" label="含税单价">
+          <el-input-number
+            v-model="editForm.price"
+            :precision="4"
+            :min="0"
+            :controls="false"
+            :disabled="!canEditPrice"
+            style="width: 100%"
+          />
+          <small>修改订单单价后，所有已关联的历史出货及退货金额会同步变化。</small>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="editForm.remark" type="textarea" :rows="3" />
@@ -146,9 +172,20 @@ import QuickRequisitionDialog from "@/views/order/orderTable/components/QuickReq
 import { CirclePlus, Delete, Download, View, EditPen } from "@element-plus/icons-vue";
 
 // 接口引入（完全不动）
-import { getOrderMater, getModel, addManyOrder, addBatchApi, getAboutById, deleteMater, editOrderMater, reset } from "@/api/modules/order";
+import {
+  getOrderMater,
+  getModel,
+  addManyOrder,
+  addBatchApi,
+  getAboutById,
+  deleteMater,
+  editOrderMater,
+  reset,
+} from "@/api/modules/order";
 import { getStateApi } from "@/api/modules/outgoing";
 import { c } from "naive-ui";
+import { sumAmounts, useOrderPrice } from "@/views/order/orderTable/components/useOrderPrice";
+const { canViewPrice, canEditPrice, formatPrice, formatAmount } = useOrderPrice();
 
 // 全局状态（完全不动）
 const mapStore = useMapStore();
@@ -163,6 +200,7 @@ const selectionSummary = computed(() => [
   { label: "订单数量", value: sumSelected("totalNumber") },
   { label: "已交数量", value: sumSelected("alreadyNumber") },
   { label: "未交数量", value: sumSelected("notAlreadyNumber") },
+  ...(canViewPrice.value ? [{ label: "含税金额", value: sumAmounts(selectedList.value.map((row) => row.amount)) }] : []),
 ]);
 // 🔥 仅新增这一行
 const batchAddDialogRef = ref<any>(null);
@@ -175,7 +213,7 @@ const orderStatusMap = [
   { label: "已生产", value: 35, tagType: "primary" },
   { label: "已外发", value: 36, tagType: "primary" },
   { label: "外发回执待全检", value: 37, tagType: "warning" },
-  { label: "已完成", value: 1, tagType: "success" }
+  { label: "已完成", value: 1, tagType: "success" },
 ];
 // ====================== 响应式数据（完全不动） ======================
 const openDetailDialog = ref(false);
@@ -196,7 +234,6 @@ const columns: ColumnProps[] = reactive([
     search: {
       el: "select",
       tooltip: "请选择客户",
-      enum: computed(() => dictStore.dictMap["cust"] || []),
       props: { placeholder: "请选择" },
     },
     enum: computed(() => dictStore.dictMap["cust"] || []),
@@ -213,7 +250,13 @@ const columns: ColumnProps[] = reactive([
     prop: "materNum",
     minWidth: 130,
     align: "center",
-    search: { el: "input", key: "openTheDog", label: "物料", tooltip: "支持物料编号或物料名称模糊搜索", props: { placeholder: "请输入物料编号或名称" } },
+    search: {
+      el: "input",
+      key: "openTheDog",
+      label: "物料",
+      tooltip: "支持物料编号或物料名称模糊搜索",
+      props: { placeholder: "请输入物料编号或名称" },
+    },
   },
   {
     label: "物料名称",
@@ -223,6 +266,8 @@ const columns: ColumnProps[] = reactive([
   { label: "订单总数", prop: "totalNumber", width: 100, align: "center" },
   { label: "已交数量", prop: "alreadyNumber", width: 100, align: "center" },
   { label: "未交数量", prop: "notAlreadyNumber", width: 100, align: "center" },
+  { label: "含税单价", prop: "price", width: 130, isShow: canViewPrice, render: ({ row }) => formatPrice(row.price) },
+  { label: "含税金额", prop: "amount", width: 140, isShow: canViewPrice, render: ({ row }) => formatAmount(row.amount) },
   {
     label: "创建人",
     prop: "createUserId",
@@ -230,7 +275,6 @@ const columns: ColumnProps[] = reactive([
     enum: computed(() => dictStore.dictMap["user"] || []),
     search: {
       el: "select",
-      enum: computed(() => dictStore.dictMap["user"] || []),
       tooltip: "选择创建人",
       props: { placeholder: "请选择" },
     },
@@ -251,7 +295,7 @@ const columns: ColumnProps[] = reactive([
 // ====================== 业务逻辑（完全不动，只加一个方法） ======================
 const dataCallback = (data) => ({ list: data.records, total: data.total });
 const initParam = reactive({ showCompleted: false });
-watch(isShowFinish, showCompleted => {
+watch(isShowFinish, (showCompleted) => {
   initParam.showCompleted = showCompleted;
 });
 
@@ -292,9 +336,9 @@ const downloadFile = async () => {
       ? (await getOrderMater({ ...params, pageNum: 1, pageSize: firstPage.total } as any)).data.records
       : [];
     const getDictLabel = (type: string, value: unknown) =>
-      dictStore.dictMap[type]?.find(item => String(item.value) === String(value))?.label || value || "";
+      dictStore.dictMap[type]?.find((item) => String(item.value) === String(value))?.label || value || "";
     const worksheet = XLSX.utils.json_to_sheet(
-      records.map(item => ({
+      records.map((item) => ({
         创建时间: item.localTime || "",
         客户: item.custName || getDictLabel("cust", item.custId),
         订单编号: item.orderNum || "",
@@ -303,13 +347,29 @@ const downloadFile = async () => {
         订单总数: item.totalNumber,
         已交数量: item.alreadyNumber || 0,
         未交数量: item.notAlreadyNumber || 0,
+        ...(canViewPrice.value ? { 含税单价: item.price, 含税金额: item.amount } : {}),
         创建人: item.createUserName || getDictLabel("user", item.createUserId),
-        状态: orderStatusMap.find(status => status.value === item.state)?.label || "",
-        备注: item.remark || ""
+        状态: orderStatusMap.find((status) => status.value === item.state)?.label || "",
+        备注: item.remark || "",
       })),
-      { header: ["创建时间", "客户", "订单编号", "物料编号", "物料名称", "订单总数", "已交数量", "未交数量", "创建人", "状态", "备注"] }
+      {
+        header: [
+          "创建时间",
+          "客户",
+          "订单编号",
+          "物料编号",
+          "物料名称",
+          "订单总数",
+          "已交数量",
+          "未交数量",
+          ...(canViewPrice.value ? ["含税单价", "含税金额"] : []),
+          "创建人",
+          "状态",
+          "备注",
+        ],
+      },
     );
-    worksheet["!cols"] = [20, 18, 20, 18, 24, 12, 12, 12, 16, 14, 24].map(wch => ({ wch }));
+    worksheet["!cols"] = [20, 18, 20, 18, 24, 12, 12, 12, 16, 14, 24].map((wch) => ({ wch }));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "订单详情（物料）");
     XLSX.writeFile(workbook, `订单详情（物料）_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -346,6 +406,7 @@ const openEditDialog = (row: any) => {
     materId: row.materId,
     totalNumber: Number(row.totalNumber),
     alreadyNumber: Number(row.alreadyNumber || 0),
+    price: row.price,
     remark: row.remark || "",
   });
   editDialogVisible.value = true;
@@ -358,7 +419,9 @@ const submitEdit = async () => {
   }
   editSubmitting.value = true;
   try {
-    await editOrderMater({ ...editForm });
+    const payload = { ...editForm };
+    if (!canEditPrice.value) delete payload.price;
+    await editOrderMater(payload);
     ElMessage.success("修改成功");
     editDialogVisible.value = false;
     proTableRef.value?.getTableList();

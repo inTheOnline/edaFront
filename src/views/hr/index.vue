@@ -1,5 +1,6 @@
 <template>
   <div class="hr-container">
+    <LeaveSalaryTool />
     <n-card title="人事主页">
       <!-- 分割线 -->
       <!-- <n-divider class="fen"/> -->
@@ -32,6 +33,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import LeaveSalaryTool from "./components/LeaveSalaryTool.vue"
 import PieChart from "@/components/ECharts/index.vue"
 import {getDepartNumber,getAgeNumber,getNumber} from "@/api/modules/hr"
 import {ref,onMounted,reactive} from "vue"

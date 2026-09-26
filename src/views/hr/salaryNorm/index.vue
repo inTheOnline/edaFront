@@ -27,7 +27,7 @@ import { Clock, EditPen } from "@element-plus/icons-vue";
 import ProTable from "@/components/ProTable/index.vue";
 import type { ColumnProps } from "@/components/ProTable/interface";
 import type { SalaryNorm } from "@/api/interface/hr";
-import { editSalaryNorm, getSalaryNorm, getSalaryNormPage } from "@/api/modules/hr";
+import { editSalaryNorm, getSalaryNorm, getSalaryNormPage, getSalaryNormLogList } from "@/api/modules/hr";
 import { useDictStore } from "@/stores/modules/dict";
 import SalaryNormDrawer from "./components/SalaryNormDrawer.vue";
 import SalaryNormLogDialog from "./components/SalaryNormLogDialog.vue";
@@ -72,8 +72,14 @@ const columns: ColumnProps[] = reactive([
 
 const openEdit = async (row: SalaryNorm) => {
   const { data } = await getSalaryNorm(row.id!);
+  let needsLog = true;
+  if (Number(data.basicNorm ?? 0) === 0 || Number(data.overNorm ?? 0) === 0) {
+    const { data: logs } = await getSalaryNormLogList(row.id!);
+    needsLog = logs.length > 0;
+  }
   drawerRef.value?.acceptParams({
     row: data,
+    needsLog,
     staffDict: staffDict.value,
     api: editSalaryNorm,
     refresh: tableRef.value?.getTableList

@@ -1,0 +1,23 @@
+/* 全站数字输入框不显示上下加减按钮，保留各页面的精度和范围。 */
+.el-input-number__increase,
+.el-input-number__decrease,
+.n-input-number .n-input__prefix > .n-button,
+.n-input-number .n-input__suffix > .n-button {
+  display: none !important;
+}
+
+.el-input-number .el-input__wrapper {
+  padding-right: 11px !important;
+  padding-left: 11px !important;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}

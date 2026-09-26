@@ -24,7 +24,14 @@
         <el-table-column prop="orderNum" label="订单号" width="200" />
         <el-table-column prop="materNum" label="产品编号" width="180" />
         <el-table-column prop="materName" label="产品名称" min-width="220" />
-        <el-table-column prop="notAlreadyNumber" label="可开单数量" width="140" />
+        <el-table-column v-if="canViewPrice" label="含税单价" width="130"
+          ><template #default="{ row }">{{ formatPrice(row.price) }}</template></el-table-column
+        >
+        <el-table-column
+          :prop="returnMode ? 'alreadyNumber' : 'notAlreadyNumber'"
+          :label="returnMode ? '已出货数' : '可开单数量'"
+          width="140"
+        />
       </el-table>
 
       <!-- 👇 新增：分页组件（居中显示） -->
@@ -52,8 +59,12 @@
 import { ref, nextTick } from "vue";
 import { ElLoading, ElMessage } from "element-plus";
 import { getOrderItem as getItemList } from "@/api/modules/order";
+import { useOrderPrice } from "@/views/order/orderTable/components/useOrderPrice";
+const { canViewPrice, formatPrice } = useOrderPrice();
+const customerId = ref<number | string | null>();
 
 const visible = ref(false);
+const returnMode = ref(false);
 const tableData = ref<any[]>([]);
 const selectedRows = ref<any[]>([]);
 const tableRef = ref();
@@ -74,7 +85,9 @@ const total = ref(0);
 const emit = defineEmits(["confirm"]);
 
 // 打开弹窗
-const open = () => {
+const open = (forReturn = false, custId?: number | string | null) => {
+  customerId.value = custId;
+  returnMode.value = forReturn;
   visible.value = true;
   // 重置分页
   pageNum.value = 1;
@@ -87,10 +100,13 @@ const getList = async () => {
   const loading = ElLoading.service({ text: "加载中..." });
   try {
     const res = await getItemList({
+      data: {},
+      returnMode: returnMode.value,
+      ...(customerId.value ? { custId: customerId.value } : {}),
       ...query.value,
       pageNum: pageNum.value,
       pageSize: pageSize.value,
-    });
+    } as any);
     // 适配后端返回格式：list + total
     tableData.value = res.data.records || res.data || [];
     total.value = res.data.total || 0;
@@ -122,7 +138,7 @@ const handleRowClick = (row: any) => {
 const handleSelectAll = () => {
   if (!tableRef.value) return;
   tableRef.value.clearSelection();
-  const availableRows = tableData.value.filter((item) => item.notAlreadyNumber > 0);
+  const availableRows = tableData.value.filter((item) => (returnMode.value ? item.alreadyNumber : item.notAlreadyNumber) > 0);
   availableRows.forEach((row) => tableRef.value.toggleRowSelection(row, true));
 };
 

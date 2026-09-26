@@ -103,7 +103,8 @@ class RequestHttp {
    * @param _object 其他配置项
    */
   get<T>(url: string, params?: object, _object = {}): Promise<ResultData<T>> {
-    return this.service.get(url, { params, ..._object });
+    const query = params && Object.fromEntries(Object.entries(params).map(([key, value]) => [key, Array.isArray(value) && (/(state|status)$/i.test(key) || ["active", "userStatic"].includes(key)) ? value.join(",") : value]));
+    return this.service.get(url, { params: query, ..._object });
   }
   post<T>(url: string, params?: object | string, _object = {}): Promise<ResultData<T>> {
     return this.service.post(url, params, _object);

@@ -174,7 +174,7 @@
   "parentPath": "/base",
   "previousParentId": 1,
   "previousParentPath": "/dashboard",
-  "sort": 30,
+  "targetIndex": 2,
   "path": "/base/routeView"
 }
 ```
@@ -186,7 +186,9 @@
 - `parentPath`：拖拽后的新父级 path；顶级可空
 - `previousParentId`：移动前的父级 id；仅供前端保留上下文，后端当前不依赖该字段
 - `previousParentPath`：移动前的父级 path；仅供前端保留上下文，后端当前不依赖该字段
-- `sort`：移动后的排序值
+- `targetIndex`：必填，移动后在目标父级子节点中的位置，从 0 开始；替代原来的 `sort` 字段。
+- 后端在同一事务中更新父级，并将目标同级节点按最终顺序重排为 `10、20、30……`；跨目录时同时重排原目录剩余节点，其他目录不变。
+- 目标位置越界会拒绝保存，前端需刷新后重试；前后端需配套更新。
 - `path`：当前路由移动后的 path；如果未修改可传原值
 
 ### 返回示例

@@ -5,10 +5,15 @@
       description="集中维护产品对应的张料、卷料及耗用参数，减少生产用料配置错误。"
       :icon="Connection"
     >
-      <template #meta><el-tag type="info" effect="plain">工艺基础数据</el-tag></template>
+      <template #meta>
+        <el-tag v-if="rawId" type="info" effect="plain">当前原料：{{ route.query.rawNum || rawId }}</el-tag>
+        <el-button v-if="rawId" @click="router.push('/godown/raw')">返回原材料</el-button>
+        <el-tag v-else type="info" effect="plain">工艺基础数据</el-tag>
+      </template>
     </RawModuleHeader>
     <div class="table-panel">
       <ProTable
+        :key="rawId || 'all'"
         ref="proTableRef"
         :columns="columns"
         :request-api="getPage"
@@ -31,6 +36,13 @@
             批量删除
           </el-button>
         </template>
+        <template
+          v-for="field in ['sheetWeight', 'rollUnitWeight', 'grossWeight', 'utilBadWeight']"
+          :key="field"
+          #[field]="{ row }"
+        >
+          {{ row[field] == null ? "" : Number(row[field]).toFixed(4) }}
+        </template>
         <template #operation="scope">
           <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">查看</el-button>
           <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', scope.row)">编辑</el-button>
@@ -44,6 +56,8 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { CirclePlus, Connection, Delete, EditPen, View } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import ProTable from "@/components/ProTable/index.vue";
@@ -56,6 +70,12 @@ import RelationDrawer from "./components/RelationDrawer.vue";
 import RawModuleHeader from "../components/RawModuleHeader.vue";
 
 const dictStore = useDictStore();
+const route = useRoute();
+const router = useRouter();
+const rawId = computed(() => {
+  const id = Number(route.query.rawId);
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined;
+});
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof RelationDrawer> | null>(null);
 const materOptions = ref<Array<{ value: string | number; label: string }>>([]);
@@ -63,7 +83,7 @@ const rawOptions = ref<Array<{ value: string | number; label: string }>>([]);
 
 const getPage = (params: Record<string, any>) => {
   const { pageNum, pageSize, ...data } = params;
-  return getRawMaterPage({ pageNum, pageSize, data });
+  return getRawMaterPage({ pageNum, pageSize, data: { ...data, rawId: rawId.value } });
 };
 
 const dataCallback = (data: any) => ({ list: data.records, total: data.total });
@@ -79,9 +99,9 @@ const columns: ColumnProps[] = reactive([
   { prop: "sheetWeight", label: "张重(kg/张)", width: 120 },
   { prop: "rollRawNum", label: "卷料编号", minWidth: 130, search: { el: "input" } },
   { prop: "rollRawSpecs", label: "卷料规格", minWidth: 170, search: { el: "input" } },
-  { prop: "rollUnitWeight", label: "单件耗重", width: 110 },
-  { prop: "grossWeight", label: "产品毛重(g/个)", width: 130 },
-  { prop: "utilBadWeight", label: "废料重", width: 100 },
+  { prop: "rollUnitWeight", label: "单件耗重(kg/个)", width: 110 },
+  { prop: "grossWeight", label: "产品毛重(kg/个)", width: 130 },
+  { prop: "utilBadWeight", label: "废料重(kg)", width: 100 },
   { prop: "remark", label: "备注", minWidth: 140 },
   { prop: "operation", label: "操作", fixed: "right", width: 210 },
 ]);

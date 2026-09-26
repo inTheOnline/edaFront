@@ -91,6 +91,8 @@ const createVitePwa = (viteEnv: ViteEnv): PluginOption | PluginOption[] => {
   const { VITE_GLOB_APP_TITLE } = viteEnv;
   return VitePWA({
     registerType: "autoUpdate",
+    // 当前 ERP 主入口超过默认 2 MiB，确保正式构建可生成完整离线缓存。
+    workbox: { maximumFileSizeToCacheInBytes: 4 * 1024 * 1024 },
     manifest: {
       name: VITE_GLOB_APP_TITLE,
       short_name: VITE_GLOB_APP_TITLE,

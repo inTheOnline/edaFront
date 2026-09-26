@@ -13,7 +13,7 @@
     :animation="180"
     @start="handleSortStart"
     @end="handleSortEnd"
-    @move="handleMove"
+    :move="handleMove"
   >
     <template #item="{ element }">
       <div class="tree-entry" :data-node-key="element.nodeKey">
@@ -46,9 +46,9 @@
 
             <div
               class="tree-row__body"
-              @dragenter.stop.prevent="activateChildTarget(element)"
-              @dragover.stop.prevent="activateChildTarget(element)"
-              @drop.stop.prevent="dropAsChild(element)"
+              @dragenter="activateChildTarget(element, $event)"
+              @dragover="activateChildTarget(element, $event)"
+              @drop="dropAsChild(element, $event)"
             >
               <div class="tree-row__icon">
                 <el-icon>
@@ -164,13 +164,18 @@ const handleMove = () => {
   return true;
 };
 
-const activateChildTarget = (node: RouteTreeViewNode) => {
+const activateChildTarget = (node: RouteTreeViewNode, event: DragEvent) => {
   if (!props.draggedKey || props.draggedKey === node.nodeKey || node.routeType !== "catalog") return;
+  // 只有目录挂载区域拦截移动事件，其余区域交给 Sortable 处理排序。
+  event.preventDefault();
+  event.stopPropagation();
   emit("child-hover", node.nodeKey);
 };
 
-const dropAsChild = (node: RouteTreeViewNode) => {
+const dropAsChild = (node: RouteTreeViewNode, event: DragEvent) => {
   if (!props.draggedKey || props.draggedKey === node.nodeKey || node.routeType !== "catalog") return;
+  // 保留 drop 冒泡，让 Sortable 完成拖拽清理并触发 end。
+  event.preventDefault();
   emit("drop-as-child", node.nodeKey);
 };
 </script>

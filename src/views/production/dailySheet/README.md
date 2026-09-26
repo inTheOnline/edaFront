@@ -16,6 +16,7 @@
 - 使用 virtualized 和固定 table-height，说明数据量可能较大。
 - 通过 computed selectedList 计算 numnberTotal 和 timeTotal，避免 watch 过重。
 - 打开抽屉时会把 materialList 和 staffList 一并传入。
+- 产品、员工字典分别通过 dictStore.loadDict 检查并复用缓存，缺失时独立加载。姓名栏加载期间显示“加载中”，失败显示“加载失败”，成功后显示员工姓名；未匹配到员工显示“--”，不回退显示数字 ID。
 - 页面代码质量相对较新，批量操作、总计显示、导入导出组织得比较完整。
 
 ## 后端 API

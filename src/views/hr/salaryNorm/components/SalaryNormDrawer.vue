@@ -6,7 +6,7 @@
     destroy-on-close
     class="salary-norm-drawer"
   >
-    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+    <el-form ref="formRef" :model="form" :rules="drawer.needsLog ? rules : {}" label-position="top">
       <section class="form-section employee-section">
         <div class="section-heading">
           <span class="section-title">员工信息</span>
@@ -41,7 +41,7 @@
         </el-row>
       </section>
 
-      <section class="form-section approval-section">
+      <section v-if="drawer.needsLog" class="form-section approval-section">
         <div class="section-heading">
           <span class="section-title">调整审批</span>
           <span class="required-tip">以下信息均为必填</span>
@@ -140,6 +140,7 @@ const submitting = ref(false);
 const formRef = ref<FormInstance>();
 const form = ref<SalaryNormForm>(emptyForm());
 const drawer = reactive({
+  needsLog: true,
   staffDict: [] as DictItem[],
   api: undefined as ((data: SalaryNormEditRequest) => Promise<unknown>) | undefined,
   refresh: undefined as (() => void) | undefined
@@ -166,6 +167,7 @@ const staffName = computed(() => {
 
 const acceptParams = (params: {
   row: SalaryNorm;
+  needsLog: boolean;
   staffDict: DictItem[];
   api: (data: SalaryNormEditRequest) => Promise<unknown>;
   refresh?: () => void;
@@ -180,13 +182,17 @@ const submit = async () => {
 
   const body: SalaryNormEditRequest = {
     id: form.value.id,
-    changeReason: form.value.changeReason.trim(),
-    effectiveMonth: form.value.effectiveMonth,
-    supervisorOpinion: form.value.supervisorOpinion.trim(),
-    approverName: form.value.approverName.trim(),
-    approvalDate: form.value.approvalDate,
     remark: form.value.remark
   };
+  if (drawer.needsLog) {
+    Object.assign(body, {
+      changeReason: form.value.changeReason.trim(),
+      effectiveMonth: form.value.effectiveMonth,
+      supervisorOpinion: form.value.supervisorOpinion.trim(),
+      approverName: form.value.approverName.trim(),
+      approvalDate: form.value.approvalDate
+    });
+  }
   salaryNormFields.forEach(item => {
     body[item.prop] = form.value[item.prop];
   });

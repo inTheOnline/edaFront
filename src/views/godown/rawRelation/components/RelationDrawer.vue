@@ -16,7 +16,7 @@
         <el-input-number v-model="propsData.row.sheetOutputNumber" :min="1" :precision="0" style="width: 100%" />
       </el-form-item>
       <el-form-item label="张重(kg/张)" prop="sheetWeight">
-        <el-input-number v-model="propsData.row.sheetWeight" :min="0" :precision="6" style="width: 100%" />
+        <el-input-number v-model="propsData.row.sheetWeight" :min="0" :precision="4" style="width: 100%" />
       </el-form-item>
       <el-divider content-position="left">卷料</el-divider>
       <el-form-item label="卷料原料" prop="rollRawId">
@@ -24,13 +24,13 @@
           <el-option v-for="item in propsData.rawOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
-      <el-form-item label="单件耗重" prop="rollUnitWeight">
+      <el-form-item label="单件耗重(kg/个)" prop="rollUnitWeight">
         <el-input-number v-model="propsData.row.rollUnitWeight" :min="0" :precision="4" style="width: 100%" />
       </el-form-item>
-      <el-form-item label="产品毛重(g/个)" prop="grossWeight">
+      <el-form-item label="产品毛重(kg/个)" prop="grossWeight">
         <el-input-number v-model="propsData.row.grossWeight" :min="0" :precision="4" style="width: 100%" />
       </el-form-item>
-      <el-form-item label="废料重" prop="utilBadWeight">
+      <el-form-item label="废料重(kg)" prop="utilBadWeight">
         <el-input-number v-model="propsData.row.utilBadWeight" :min="0" :precision="4" style="width: 100%" />
       </el-form-item>
       <el-form-item label="备注" prop="remark">
@@ -72,7 +72,8 @@ const validateRelation = (_rule: unknown, _value: unknown, callback: (error?: Er
   if (hasSheet && !row.sheetOutputNumber) return callback(new Error("选择张料后必须填写每张产出数"));
   if (hasSheet && (!row.sheetWeight || row.sheetWeight <= 0)) return callback(new Error("选择张料后必须填写张重"));
   if (!hasSheet && row.sheetOutputNumber !== undefined) return callback(new Error("未选择张料时不能填写每张产出数"));
-  if (hasRoll && (!row.rollUnitWeight || row.rollUnitWeight <= 0)) return callback(new Error("选择卷料后必须填写大于 0 的单件耗重"));
+  if (hasRoll && (!row.rollUnitWeight || row.rollUnitWeight <= 0))
+    return callback(new Error("选择卷料后必须填写大于 0 的单件耗重"));
   if (hasRoll && (!row.grossWeight || row.grossWeight <= 0)) return callback(new Error("选择卷料后必须填写产品毛重"));
   if (!hasRoll && row.rollUnitWeight !== undefined) return callback(new Error("未选择卷料时不能填写单件耗重"));
   callback();
@@ -85,7 +86,7 @@ const rules: FormRules = reactive({
   sheetWeight: [{ validator: validateRelation, trigger: "change" }],
   rollRawId: [{ validator: validateRelation, trigger: "change" }],
   rollUnitWeight: [{ validator: validateRelation, trigger: "change" }],
-  grossWeight: [{ validator: validateRelation, trigger: "change" }]
+  grossWeight: [{ validator: validateRelation, trigger: "change" }],
 });
 
 const acceptParams = (params: DrawerProps) => {

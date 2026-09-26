@@ -18,6 +18,7 @@
 - 抽屉打开时会额外传入 departmentMap、checksysMap、stateMap。
 - 职工资料新增/编辑支持 `social` 和 `remark`：`social` 取值 `1` 表示深圳一档，`2` 表示深圳2档，`3` 表示深圳三档，`0` 表示否。
 - 职工资料新增/编辑支持 `bankCard` 银行卡号、`bankBranch` 开户银行、`bankDetail` 开户支行详情。
+- 新增职工时，后端通过 `StaffDTO` 接收并保存 `checksysId` 考勤制度、`contractDate` 合同截止、`createTime` 入职时间，首次保存即生效；未填写入职时间时沿用后端自动填充日期。以上字段不新增到 Excel 导入导出列。
 - 职工列表操作列中的“资料”按钮打开 `StaffAttachmentDialog`，支持上传、预览、下载、删除人事资料。
 - 人事资料默认类型为身份证、劳动合同、入职资料、银行卡、其他，前端允许用户自定义类型。
 - 人事资料仅支持 PDF、Word、Excel、JPG、PNG，单个文件最大 30MB。
@@ -52,3 +53,5 @@
 - 字典类枚举优先走 dictStore.loadDicts 或接口 enum，不要在页面里重复硬编码。
 - 导入导出优先复用 ImportExcel 和 useDownload。
 - 删除后通常调用 getTableList 或 reset 刷新表格，保持现有交互一致。
+
+- 员工状态搜索支持多选，GET 请求按逗号序列化，后端按 IN 查询。

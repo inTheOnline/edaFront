@@ -9,29 +9,17 @@
       :model="drawerProps.row"
       :hide-required-asterisk="drawerProps.isView"
     >
-    <!-- {{ drawerProps.row.maters }} -->
+      <!-- {{ drawerProps.row.maters }} -->
       <el-form-item label="订单编号" prop="orderNum">
         <el-input v-model="drawerProps.row.orderNum" placeholder="请填入订单编号" clearable></el-input>
       </el-form-item>
       <el-form-item label="客户" prop="custId">
-        <el-select
-          v-model="drawerProps.row.custId"
-          placeholder="请选择客户"
-          style="width: 240px"
-        >
-        <el-option
-          v-for="item in dictStore.dictMap['cust']"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-        />
-    </el-select>
+        <el-select v-model="drawerProps.row.custId" placeholder="请选择客户" style="width: 240px">
+          <el-option v-for="item in dictStore.dictMap['cust']" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
       </el-form-item>
       <el-form-item label="物料明细" prop="maters">
-        <Mater
-          v-model="drawerProps.row.maters"
-          :options="dictStore.dictMap['mater']"
-        />
+        <Mater v-model="drawerProps.row.maters" :options="dictStore.dictMap['mater']" />
       </el-form-item>
       <el-form-item label="备注" prop="remark">
         <el-input v-model="drawerProps.row.remark" placeholder="请填入订单备注" clearable></el-input>
@@ -45,13 +33,15 @@
 </template>
 
 <script setup lang="ts" name="UserDrawer">
-import { ref, reactive,onMounted,computed} from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, FormInstance } from "element-plus";
-import Mater from "@/views/components/mater/Maters.vue"
-import {useDictStore} from '@/stores/modules/dict'
-const dictStore = useDictStore()
+import Mater from "./OrderLines.vue";
+import { useOrderPrice } from "./useOrderPrice";
+const { canEditPrice } = useOrderPrice();
+import { useDictStore } from "@/stores/modules/dict";
+const dictStore = useDictStore();
 onMounted(async () => {
-  await dictStore.loadDicts(['mater']);
+  await dictStore.loadDicts(["mater"]);
 });
 // 验证规则
 const rules = reactive({
@@ -65,30 +55,28 @@ const drawerProps = ref<DrawerProps>({
   isView: false,
   title: "",
   row: {
-    orderNum:"",
-    custId:"",
-    custName:'',
-    createUserName:'',
-    stateKey:'',
-    maters:[
-      { id: '', totalNumber: 1 }
-    ],
-    remark:"",
+    orderNum: "",
+    custId: "",
+    custName: "",
+    createUserName: "",
+    stateKey: "",
+    maters: [{ id: "", totalNumber: 1 }],
+    remark: "",
   },
-  departmentMap:[],
-  stateMap:[],
+  departmentMap: [],
+  stateMap: [],
 });
 // 物料模块
 const props = {
   // checkStrictly: true,
-  value: 'value', // 数据中的唯一标识字段
-  label: 'label', // 数据中的显示名称字段
+  value: "value", // 数据中的唯一标识字段
+  label: "label", // 数据中的显示名称字段
   emitPath: false, // 只返回选中节点的值，不返回路径
 };
 // 接收父组件传过来的参数
 const acceptParams = (params: DrawerProps) => {
   if (!Array.isArray(params.row.maters)) {
-    params.row.maters = [{ id: '', totalNumber: 1 }]
+    params.row.maters = [{ id: "", totalNumber: 1 }];
   }
   drawerProps.value = params;
   drawerVisible.value = true;
@@ -97,10 +85,25 @@ const acceptParams = (params: DrawerProps) => {
 // 提交数据（新增/编辑）
 const ruleFormRef = ref<FormInstance>();
 const handleSubmit = () => {
-  ruleFormRef.value!.validate(async valid => {
+  ruleFormRef.value!.validate(async (valid) => {
     if (!valid) return;
+    if (drawerProps.value.row.maters.some((item) => item.priceLoading || item.priceError)) {
+      ElMessage.warning("请等待产品信息加载完成；加载失败时请重新选择产品");
+      return;
+    }
     try {
-      await drawerProps.value.api!(drawerProps.value.row);
+      const row = drawerProps.value.row;
+      const payload = {
+        ...row,
+        maters: row.maters.map((item) => {
+          const line = { ...item };
+          delete line.priceLoading;
+          delete line.priceError;
+          if (!canEditPrice.value) delete line.price;
+          return line;
+        }),
+      };
+      await drawerProps.value.api!(payload);
       ElMessage.success({ message: `${drawerProps.value.title}订单成功！` });
       drawerProps.value.getTableList!();
       drawerVisible.value = false;
@@ -112,7 +115,7 @@ const handleSubmit = () => {
 };
 
 defineExpose({
-  acceptParams
+  acceptParams,
 });
 </script>
 

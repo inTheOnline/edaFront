@@ -54,13 +54,15 @@ export interface OutbackRecord {
   backDate: string;
   supId: number;
   supName?: string;
-  outItemId: number;
+  outItemId?: number;
   subcId?: number;
   subcNum?: string;
   materId?: number | string;
   materNum?: string;
   materName?: string;
   number: number;
+  exceptionDelta?: number;
+  hasException?: boolean;
   state: number;
   stateLabel?: string;
   stateTagType?: string;
@@ -69,6 +71,7 @@ export interface OutbackRecord {
 }
 
 export interface OutformQuery {
+  onlyPending?: boolean;
   pageNum: number;
   pageSize: number;
   subcId?: number;

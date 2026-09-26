@@ -5,9 +5,9 @@
       <template #footer><el-button @click="settingsVisible = false">关闭</el-button></template>
     </el-dialog>
     <div v-if="showSwitcher" class="warehouse-switcher">
-      <el-segmented v-model="warehouseCode" :options="warehouseOptions" @change="proTableRef?.reset()" />
+      <el-segmented v-model="warehouseCode" :options="warehouseOptions" />
     </div>
-    <ProTable v-if="warehouseCode" ref="proTableRef" :columns="columns" :request-api="requestTotal" :dataCallback="dataCallback"
+    <ProTable v-if="warehouseCode" :key="warehouseCode" ref="proTableRef" :columns="columns" :request-api="requestTotal" :dataCallback="dataCallback"
       :pagination="true" :tool-button="['refresh','setting','search']" row-key="itemId" striped
       :search-col="{xs:2,sm:2,md:3,lg:3,xl:4}">
       <template #tableHeader>
@@ -23,8 +23,8 @@
           :title="`库存数据异常：发现 ${checkRows.length} 项差异，请查看受影响物料`" />
         <el-button v-if="checkRows.length" type="danger" link @click="checkVisible=true">查看差异</el-button>
       </template>
-      <template #readyNumber="{row}"><el-button link type="primary" @click="showFlows(row,'READY')">{{ row.readyNumber }}</el-button></template>
-      <template #stockNumber="{row}"><el-button link type="primary" @click="showFlows(row,'QUALIFIED')">{{ row.stockNumber }}</el-button></template>
+      <template #readyNumber="{row}"><el-button link :type="row.readyNumber < 0 ? 'danger' : 'primary'" @click="showFlows(row,'READY')">{{ row.readyNumber }}</el-button></template>
+      <template #stockNumber="{row}"><el-button link :type="row.stockNumber < 0 ? 'danger' : 'primary'" @click="showFlows(row,'QUALIFIED')">{{ row.stockNumber }}</el-button></template>
       <template #number="{row}"><el-button link type="primary" @click="showFlows(row)">{{ row.number }}</el-button></template>
       <template #operation="scope"><el-button type="primary" link :icon="View" @click="showDetail(scope.row)">详情</el-button></template>
     </ProTable>

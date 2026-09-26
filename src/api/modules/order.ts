@@ -1,37 +1,39 @@
 import http from "@/api";
-import { ReqPageT,ResultData,ResPage } from "@/api/interface/index";
+import { ReqPageT, ResultData, ResPage } from "@/api/interface/index";
 import { Order, OrderMaterDetail } from "@/api/interface/order";
 //params分页请求参数
 export const getOrderAll = (params: ReqPageT<any>) => {
   return http.post<any>(`/order/all`, params);
 };
 export const getModel = () => {
-  return http.download(`/order/getModel`,{});
+  return http.download(`/order/getModel`, {});
 };
 export const addManyOrder = (file) => {
   return http.post<any>(`/order/addManyOrder`, file);
 };
 export const delect = (ids: number[]) => {
-  return http.post<any>(`/order/deleteMater`,ids);
+  return http.post<any>(`/order/deleteMater`, ids);
 };
 export const deleteMany = (ids: number[]) => {
-  return http.post<any>(`/order/deleteMany`,ids);
+  return http.post<any>(`/order/deleteMany`, ids);
 };
 export const deleteMater = (ids: number[]) => {
-  return http.post<any>(`/order/deleteMater`,ids);
+  return http.post<any>(`/order/deleteMater`, ids);
 };
-export const addOrder = (order:Order) => {
+export const addOrder = (order: Order) => {
   return http.post<any>(`/order/addOrder`, order);
 };
 export const getOrderMater = (params: ReqPageT<any>) => {
   return http.post<any>(`/order/getOrderMater`, params);
 };
-export const getAboutById = (id:number) => {
-  return http.get<any>(`/order/getOutById`,{id});
+export const getAboutById = (id: number) => {
+  return http.get<any>(`/order/getOutById`, { id });
 };
-export const editOrder = (order:Order) => {
+export const editOrder = (order: Order) => {
   return http.post<any>(`/order/editOrder`, order);
 };
+export const getOrderProductInfo = (materId: number | string) =>
+  http.get<{ materId: number; custId: number | null; price: number | null }>("/order/productInfo", { materId });
 export const editOrderMater = (orderMater: OrderMaterDetail) => {
   return http.put<any>(`/order/editMater`, orderMater);
 };
@@ -40,16 +42,16 @@ export const reset = () => {
 };
 export const importCustOrders = () => {
   return http.post<any>(`/order/reset`);
-}
+};
 export const getCustOrderList = () => {
   return http.get<any>(`/order/COList`);
-}
-export const getOrderDetail = (id:number) => {
-  return http.get<any>(`/order/detail/`+id);
-}
-export const getSubmitOrder = (materId:number) => {
+};
+export const getOrderDetail = (id: number) => {
+  return http.get<any>(`/order/detail/` + id);
+};
+export const getSubmitOrder = (materId: number) => {
   return http.get<any>(`/order/submitOrder/${materId}`);
-}
+};
 export const getOrderItem = (params: ReqPageT<any>) => {
   return http.post<any>(`/order/getOrderItem`, params);
 };

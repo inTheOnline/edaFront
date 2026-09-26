@@ -77,16 +77,17 @@ const rawTemplate: TemplateConfig = {
     headerRows: 1,
     layout: tableLayout,
     columns: [
-      { label: "序号", field: "sequence", width: 26, alignment: "center" },
-      { label: "订单号", field: "custOrderNum", width: 72 },
-      { label: "物料编号", field: "materNum", width: 60 },
-      { label: "物料名称", field: "materName", width: 70, overflow: "wrap" },
-      { label: "原材料编号", field: "rawNum", width: 65 },
-      { label: "规格", field: "rawSpecs", width: 94, overflow: "wrap" },
-      { label: "生产数", field: "productionNumber", width: 44, alignment: "right" },
-      { label: "材料数", field: "materialQuantity", width: 48, alignment: "right" },
-      { label: "请购重量", field: "requisitionWeight", width: 56, alignment: "right" },
-      { label: "备注", field: "remark", width: 70, overflow: "wrap" }
+      { label: "序号", field: "sequence", width: 24, alignment: "center" },
+      { label: "订单号", field: "custOrderNum", width: 64, overflow: "wrap" },
+      { label: "物料编号", field: "materNum", width: 52 },
+      { label: "物料名称", field: "materName", width: 56, overflow: "wrap" },
+      { label: "原材料编号", field: "rawNum", width: 56 },
+      { label: "规格", field: "rawSpecs", width: 72, overflow: "wrap" },
+      { label: "订单数量", field: "orderNumber", width: 44, alignment: "right" },
+      { label: "生产数", field: "productionNumber", width: 40, alignment: "right" },
+      { label: "材料数", field: "materialQuantity", width: 44, alignment: "right" },
+      { label: "请购重量", field: "requisitionWeight", width: 52, alignment: "right" },
+      { label: "备注", field: "remark", width: 60, overflow: "wrap" }
     ]
   }
 };

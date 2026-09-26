@@ -36,9 +36,7 @@
           <el-input :model-value="headerForm.supName" readonly placeholder="选择外发明细后自动带出" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="headerForm.state" style="width: 100%">
-            <el-option v-for="item in normalizedStateOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
+          <el-input :model-value="submittedStateLabel" disabled />
         </el-form-item>
         <el-form-item label="整单备注" class="full-row">
           <el-input v-model="headerForm.outbackRemark" />
@@ -53,7 +51,9 @@
           <div class="select-row">
             <div class="select-card">
               <el-input :model-value="row.displayText" readonly />
-              <div v-if="row.outItemId" class="select-card__hint">提交后未回：{{ formatPendingValue(getProjectedNotback(row)) }}</div>
+              <div v-if="row.outItemId" class="select-card__hint">
+                提交后未回：{{ formatPendingValue(getProjectedNotback(row)) }}
+              </div>
             </div>
             <el-button type="primary" class="accent-btn" @click="openSelector($index)">选择</el-button>
           </div>
@@ -100,12 +100,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import dayjs from "dayjs";
 import type { EnumProps } from "@/components/ProTable/interface";
 import OutItemSelector from "./OutItemSelector.vue";
-import {
-  calcProjectedNotbackNumber,
-  formatMaterialLabel,
-  type OutbackBatchPayload,
-  type OutformRecord
-} from "../../service";
+import { calcProjectedNotbackNumber, formatMaterialLabel, type OutbackBatchPayload, type OutformRecord } from "../../service";
 
 type BatchParams = {
   suppliers: Array<{ label: string; value: string | number }>;
@@ -129,7 +124,7 @@ const headerForm = ref({
   supId: "" as string | number,
   supName: "",
   state: 901 as string | number,
-  outbackRemark: ""
+  outbackRemark: "",
 });
 
 type BatchRow = {
@@ -147,23 +142,13 @@ type BatchRow = {
 
 const rows = ref<BatchRow[]>([]);
 
-const normalizedStateOptions = computed(() =>
-  stateOptions.value
-    .map(item => {
-      const rawValue = item?.value;
-      const value =
-        typeof rawValue === "string" && rawValue.trim() && !Number.isNaN(Number(rawValue))
-          ? Number(rawValue)
-          : (rawValue as string | number);
-      if (value === undefined || value === null || !item?.label) return null;
-      return { label: String(item.label), value };
-    })
-    .filter(Boolean) as Array<{ label: string; value: string | number }>
+const submittedStateLabel = computed(() =>
+  String(stateOptions.value.find((item) => Number(item.value) === 901)?.label || "已提交"),
 );
 
 const buildDisplayText = (row: OutformRecord) => `${row.materNum || ""} / ${row.materName || ""}`;
 
-const validRows = computed(() => rows.value.filter(item => item.outItemId));
+const validRows = computed(() => rows.value.filter((item) => item.outItemId));
 const validRowCount = computed(() => validRows.value.length);
 
 const syncLockedSupplier = () => {
@@ -176,13 +161,13 @@ const syncLockedSupplier = () => {
 
   headerForm.value.supId = firstRow.supId;
   headerForm.value.supName =
-    firstRow.supName || suppliers.value.find(item => String(item.value) === String(firstRow.supId))?.label || "";
+    firstRow.supName || suppliers.value.find((item) => String(item.value) === String(firstRow.supId))?.label || "";
 };
 
 const getProjectedNotback = (row: BatchRow) =>
   calcProjectedNotbackNumber({
     currentNotbackNumber: row.notbackNumber,
-    nextReceiptNumber: row.number
+    nextReceiptNumber: row.number,
   });
 
 const formatPendingValue = (value: number) => `${value > 0 ? "+" : ""}${value}`;
@@ -195,7 +180,7 @@ const addRow = () => {
     number: 1,
     syncWarehouse: true,
     remark: "",
-    displayText: ""
+    displayText: "",
   });
 };
 
@@ -214,8 +199,8 @@ const open = (params: BatchParams) => {
     outbackNum: "",
     supId: "",
     supName: "",
-    state: normalizedStateOptions.value[0]?.value ?? 901,
-    outbackRemark: ""
+    state: 901,
+    outbackRemark: "",
   };
   rows.value = [];
   addRow();
@@ -227,7 +212,7 @@ const openSelector = (index: number) => {
   selectorRef.value?.open({
     multiple: true,
     supId: headerForm.value.supId || undefined,
-    supName: headerForm.value.supName || undefined
+    supName: headerForm.value.supName || undefined,
   });
 };
 
@@ -242,7 +227,7 @@ const applyOutItem = (row: OutformRecord, index: number, keepRemark = "", syncWa
     supName: row.supName,
     materName: row.materName,
     materNum: row.materNum,
-    notbackNumber: Number(row.notbackNumber || 0)
+    notbackNumber: Number(row.notbackNumber || 0),
   };
   syncLockedSupplier();
 };
@@ -255,9 +240,9 @@ const handleSelectOutItem = (row: OutformRecord) => {
 const handleSelectOutItems = (selected: OutformRecord[]) => {
   if (!selected.length) return;
   const lockedSupplierId = headerForm.value.supId || selected[0]?.supId;
-  const sameSupplierSelected = selected.filter(item => String(item.supId) === String(lockedSupplierId));
-  const existedIds = new Set(rows.value.map(item => item.outItemId).filter(Boolean));
-  const candidates = sameSupplierSelected.filter(item => !existedIds.has(item.id));
+  const sameSupplierSelected = selected.filter((item) => String(item.supId) === String(lockedSupplierId));
+  const existedIds = new Set(rows.value.map((item) => item.outItemId).filter(Boolean));
+  const candidates = sameSupplierSelected.filter((item) => !existedIds.has(item.id));
   if (!candidates.length) return;
 
   if (currentIndex < 0) currentIndex = rows.value.length ? rows.value.length - 1 : 0;
@@ -266,10 +251,10 @@ const handleSelectOutItems = (selected: OutformRecord[]) => {
     candidates[0],
     currentIndex,
     rows.value[currentIndex]?.remark || "",
-    rows.value[currentIndex]?.syncWarehouse ?? true
+    rows.value[currentIndex]?.syncWarehouse ?? true,
   );
 
-  candidates.slice(1).forEach(item => {
+  candidates.slice(1).forEach((item) => {
     rows.value.push({
       outItemId: item.id,
       number: Number(item.notbackNumber || 1),
@@ -280,7 +265,7 @@ const handleSelectOutItems = (selected: OutformRecord[]) => {
       supName: item.supName,
       materName: item.materName,
       materNum: item.materNum,
-      notbackNumber: Number(item.notbackNumber || 0)
+      notbackNumber: Number(item.notbackNumber || 0),
     });
   });
 
@@ -292,19 +277,15 @@ const handleSelectOutItems = (selected: OutformRecord[]) => {
 };
 
 const confirmNegativeRows = async () => {
-  const negativeRows = validRows.value.filter(item => getProjectedNotback(item) < 0);
+  const negativeRows = validRows.value.filter((item) => getProjectedNotback(item) < 0);
   if (!negativeRows.length) return true;
 
-  const materialText = negativeRows.map(item => formatMaterialLabel(item)).join("、");
-  await ElMessageBox.confirm(
-    `提交后以下物料的未回数量将为负数：${materialText}，是否继续？`,
-    "未回数量提醒",
-    {
-      type: "warning",
-      confirmButtonText: "继续提交",
-      cancelButtonText: "返回修改"
-    }
-  );
+  const materialText = negativeRows.map((item) => formatMaterialLabel(item)).join("、");
+  await ElMessageBox.confirm(`提交后以下物料的未回数量将为负数：${materialText}，是否继续？`, "未回数量提醒", {
+    type: "warning",
+    confirmButtonText: "继续提交",
+    cancelButtonText: "返回修改",
+  });
   return true;
 };
 
@@ -313,7 +294,7 @@ const submit = async () => {
     ElMessage.warning("请先填写表头信息");
     return;
   }
-  if (!rows.value.length || rows.value.some(item => !item.outItemId || !item.number)) {
+  if (!rows.value.length || rows.value.some((item) => !item.outItemId || !item.number)) {
     ElMessage.warning("请补全批量明细");
     return;
   }
@@ -330,15 +311,15 @@ const submit = async () => {
       backDate: headerForm.value.backDate,
       outbackNum: headerForm.value.outbackNum,
       supId: headerForm.value.supId,
-      state: Number(headerForm.value.state || 901),
-      outbackRemark: headerForm.value.outbackRemark
+      state: 901,
+      outbackRemark: headerForm.value.outbackRemark,
     },
-    rows: rows.value.map(item => ({
+    rows: rows.value.map((item) => ({
       outItemId: item.outItemId,
       number: Number(item.number),
       syncWarehouse: item.syncWarehouse,
-      remark: item.remark
-    }))
+      remark: item.remark,
+    })),
   });
 
   ElMessage.success("批量新增成功");
@@ -362,8 +343,7 @@ defineExpose({ open });
   margin-bottom: 18px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 20px;
-  background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
     linear-gradient(135deg, #0f172a, #162456 46%, #0f766e 100%);
   color: #fff;
   box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18);
@@ -424,9 +404,7 @@ defineExpose({ open });
   padding: 18px 20px 4px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 20px;
-  background:
-    radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 32%),
-    #f8fbff;
+  background: radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 32%), #f8fbff;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
@@ -499,8 +477,7 @@ defineExpose({ open });
 
 :deep(.el-dialog__body) {
   padding: 20px 24px;
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
     linear-gradient(180deg, #f6faff, #ffffff 24%);
 }
 

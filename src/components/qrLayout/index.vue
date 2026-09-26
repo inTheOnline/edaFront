@@ -30,6 +30,7 @@
           <el-option label="1mm" :value="1" />
           <el-option label="2mm" :value="2" />
         </el-select>
+        <el-switch v-model="snapEnabled" active-text="吸附" aria-label="对象吸附" />
         <el-slider v-model="zoomPercent" class="zoom-slider" :min="10" :max="800" :step="10" />
         <span class="zoom-text">{{ zoomPercent }}%</span>
         <el-button type="success" @click="openPrintDialog(false)"><el-icon><Printer /></el-icon>打印</el-button>
@@ -92,7 +93,7 @@
           <span>滚轮缩放 10%-800%，Shift + 缩放保持比例</span>
           <span>{{ template.paper.width }}mm x {{ template.paper.height }}mm</span>
         </div>
-        <div ref="stageScrollRef" class="stage-scroll" @wheel.prevent="handleWheelZoom" @mousedown="clearSelection">
+        <div ref="stageScrollRef" class="stage-scroll" @wheel.prevent="handleWheelZoom" @mousedown="handleStageMousedown">
           <div ref="canvasRef" class="label-canvas" :class="{ 'is-grid': showGrid }" :style="canvasStyle">
             <div
               v-for="item in sortedElements"
@@ -136,14 +137,17 @@
             </div>
             <Moveable
               v-if="selectedTarget && selectedElement && !selectedElement.locked && editingId !== selectedId"
+              ref="moveableRef"
               :target="selectedTarget"
               :container="canvasRef"
               :draggable="true"
               :resizable="true"
               :rotatable="true"
-              :snappable="showGrid"
-              :snapThreshold="2"
-              :elementGuidelines="moveableGuidelines"
+              :snappable="true"
+              :snapHorizontalThreshold="3"
+              :snapVerticalThreshold="3"
+              :snapGap="false"
+              :elementGuidelines="snapEnabled ? moveableGuidelines : []"
               :bounds="moveableBounds"
               :keepRatio="keepRatio"
               :origin="false"
@@ -519,7 +523,7 @@ import {
   updateQrLayoutTemplate
 } from "@/api/modules/qrLayout";
 import type { QrLayoutTemplateRecord } from "@/api/interface/qrLayout";
-import { createDefaultTemplate, templateExamples } from "./templates";
+import { createDefaultTemplate } from "./templates";
 import type { QrLayoutDataTransform, QrLayoutElement, QrLayoutElementType, QrLayoutObjectDataSource, QrLayoutPaper, QrLayoutSourceType, QrLayoutTemplate, QrLayoutValueType } from "./types";
 import {
   buildCode128Bars,
@@ -539,7 +543,8 @@ import {
   sourceTextPoint
 } from "./utils";
 
-const template = ref<QrLayoutTemplate>(createDefaultTemplate());
+const createBlankTemplate = (): QrLayoutTemplate => ({ ...createDefaultTemplate(), name: "新模板", elements: [] });
+const template = ref<QrLayoutTemplate>(createBlankTemplate());
 const localTemplateKey = "eda-erp-qr-layout-template";
 const customTemplateKey = "eda-erp-qr-layout-template-list";
 const savedTemplateKey = "eda-erp-qr-layout-saved-template-map";
@@ -578,10 +583,12 @@ interface TemplateLibraryOption {
   record?: ServerTemplateItem;
 }
 const selectedId = ref("");
+const moveableRef = ref<InstanceType<typeof Moveable> | null>(null);
 const editingId = ref("");
 const zoomPercent = ref(100);
 const gridSize = ref(0.5);
 const showGrid = ref(true);
+const snapEnabled = ref(true);
 const shiftPressed = ref(false);
 const paperVisible = ref(false);
 const printVisible = ref(false);
@@ -592,9 +599,9 @@ const sourceDialogVisible = ref(false);
 const transformDialogVisible = ref(false);
 const templateDialogVisible = ref(false);
 const tsplText = ref("");
-const exampleName = ref(templateExamples[0].name);
-const activeTemplateName = ref(templateExamples[0].name);
-const activeTemplateKey = ref(`builtin:${templateExamples[0].name}`);
+const exampleName = ref("");
+const activeTemplateName = ref(template.value.name);
+const activeTemplateKey = ref("");
 const customTemplates = ref<QrLayoutTemplate[]>([]);
 const savedTemplates = ref<Record<string, QrLayoutTemplate>>({});
 const workingTemplates = ref<Record<string, QrLayoutTemplate>>({});
@@ -604,7 +611,7 @@ const defaultDraftPaper = paperPresets[2];
 const templateDraft = reactive<TemplateDraft>({
   name: "新模板",
   source: "blank",
-  exampleName: templateExamples[0].name,
+  exampleName: "",
   paperName: defaultDraftPaper.name,
   width: defaultDraftPaper.width,
   height: defaultDraftPaper.height,
@@ -708,17 +715,6 @@ const templateOptions = computed<TemplateLibraryOption[]>(() => [
         }
       ]
     : []),
-  ...templateExamples.map(item => {
-    const saved = savedTemplates.value[item.name];
-    const working = workingTemplates.value[item.name];
-    return {
-      key: `builtin:${item.name}`,
-      template: normalizeTemplate(working || saved || item),
-      source: "builtin" as const,
-      builtin: true,
-      editable: true
-    };
-  }),
   ...customTemplates.value.map(item => {
     const working = workingTemplates.value[item.name];
     return {
@@ -738,7 +734,12 @@ const canvasStyle = computed(() => ({
   borderRadius: `${templateBorderRadius(template.value.paper) * zoom.value}px`,
   border: template.value.paper.borderVisible ? `${Math.max(templateBorderWidth(template.value.paper) * zoom.value, 1)}px solid #111827` : "1px solid #111827"
 }));
-const moveableGuidelines = computed(() => sortedElements.value.map(item => document.getElementById(item.id)).filter(Boolean) as HTMLElement[]);
+const moveableGuidelines = computed(() =>
+  sortedElements.value
+    .filter(item => item.visible && item.id !== selectedId.value)
+    .map(item => document.getElementById(item.id))
+    .filter(Boolean) as HTMLElement[]
+);
 const moveableBounds = computed(() => ({ left: 0, top: 0, right: template.value.paper.width * zoom.value, bottom: template.value.paper.height * zoom.value }));
 const templatePreviewScale = computed(() => Math.min(280 / Math.max(templateDraft.width, 1), 190 / Math.max(templateDraft.height, 1)));
 const templatePreviewStyle = computed(() => ({
@@ -920,7 +921,8 @@ const useTemplate = (key: string) => {
 
 const handleTemplateSelect = (key: string) => {
   if (key === newTemplateSelectValue) {
-    activeTemplateKey.value = templateOptions.value.find(item => item.template.name === activeTemplateName.value)?.key || templateOptions.value[0]?.key || `builtin:${templateExamples[0].name}`;
+    activeTemplateKey.value = templateOptions.value.find(item => item.template.name === activeTemplateName.value)?.key || "";
+    exampleName.value = activeTemplateKey.value;
     openCreateTemplateDialog("blank");
     return;
   }
@@ -981,7 +983,7 @@ const syncTemplateDraftFromSource = () => {
 };
 
 const openCreateTemplateDialog = (source: TemplateSource, baseTemplate?: QrLayoutTemplate) => {
-  const base = baseTemplate || (source === "current" ? template.value : templateExamples[0]);
+  const base = baseTemplate || (source === "current" ? template.value : templateOptions.value[0]?.template || createBlankTemplate());
   templateDraft.source = source;
   templateDraft.exampleName = base.name;
   templateDraft.name = uniqueTemplateName(source === "blank" ? "新模板" : `${base.name}副本`);
@@ -1190,7 +1192,20 @@ const removeTemplate = async (item: TemplateLibraryOption) => {
     customTemplates.value = customTemplates.value.filter(templateItem => templateItem.name !== item.template.name);
     persistCustomTemplates();
   }
-  if (activeTemplateKey.value === item.key) useTemplate(templateOptions.value[0]?.key || `builtin:${templateExamples[0].name}`);
+  if (activeTemplateKey.value === item.key) {
+    const next = templateOptions.value[0];
+    if (next) {
+      useTemplate(next.key);
+    } else {
+      activeTemplateKey.value = "";
+      exampleName.value = "";
+      template.value = createBlankTemplate();
+      activeTemplateName.value = template.value.name;
+      clearSelection();
+      snapshot();
+    }
+  }
+  ElMessage.success("模板已删除");
 };
 
 const triggerImport = () => templateInputRef.value?.click();
@@ -1290,9 +1305,18 @@ const clearSelection = () => {
   editingId.value = "";
 };
 
+const handleStageMousedown = (event: MouseEvent) => {
+  // 手柄事件会冒泡到画布容器，仅点击空白处时取消选中。
+  if (event.target === stageScrollRef.value || event.target === canvasRef.value) clearSelection();
+};
+
 const refreshTarget = async () => {
   await nextTick();
-  selectedTarget.value = selectedId.value ? document.getElementById(selectedId.value) : null;
+  const target = selectedId.value ? document.getElementById(selectedId.value) : null;
+  if (selectedTarget.value === target) return;
+  selectedTarget.value = target;
+  await nextTick();
+  moveableRef.value?.updateRect();
 };
 
 const duplicateSelected = () => {
@@ -1493,18 +1517,18 @@ const onMoveableStart = () => {
 const onMoveableDrag = (event: { beforeTranslate: number[] }) => {
   const item = selectedElement.value;
   if (!item) return;
-  item.x = clampToPaper(roundByGrid(moveStart.value.x + event.beforeTranslate[0] / zoom.value), "x", item);
-  item.y = clampToPaper(roundByGrid(moveStart.value.y + event.beforeTranslate[1] / zoom.value), "y", item);
+  item.x = clampToPaper(moveStart.value.x + event.beforeTranslate[0] / zoom.value, "x", item);
+  item.y = clampToPaper(moveStart.value.y + event.beforeTranslate[1] / zoom.value, "y", item);
 };
 
 const onMoveableResize = (event: any) => {
   const item = selectedElement.value;
   if (!item) return;
   const translate = event.drag?.beforeTranslate || [0, 0];
-  item.x = clampToPaper(roundByGrid(moveStart.value.x + translate[0] / zoom.value), "x", item);
-  item.y = clampToPaper(roundByGrid(moveStart.value.y + translate[1] / zoom.value), "y", item);
-  item.width = Math.max(0.5, roundByGrid(event.width / zoom.value));
-  item.height = Math.max(0.3, roundByGrid(event.height / zoom.value));
+  item.width = Math.max(0.5, event.width / zoom.value);
+  item.height = Math.max(0.3, event.height / zoom.value);
+  item.x = clampToPaper(moveStart.value.x + translate[0] / zoom.value, "x", item);
+  item.y = clampToPaper(moveStart.value.y + translate[1] / zoom.value, "y", item);
   event.target.style.width = `${item.width * zoom.value}px`;
   event.target.style.height = `${item.height * zoom.value}px`;
   event.target.style.left = `${item.x * zoom.value}px`;
@@ -1524,8 +1548,9 @@ const onMoveableEnd = () => {
 };
 
 const refreshMoveableFrame = async () => {
-  selectedTarget.value = null;
   await refreshTarget();
+  await nextTick();
+  moveableRef.value?.updateRect();
 };
 
 const elementStyle = (item: QrLayoutElement) => ({
@@ -1920,7 +1945,6 @@ const cssFontFamily = (value: string) => value.split(",").map(item => `"${item.t
 const typeName = (type: QrLayoutElementType) => ({ text: "文本", qr: "二维码", code128: "Code128", image: "图片", line: "线条", rect: "矩形" })[type];
 const nextZIndex = () => Math.max(0, ...template.value.elements.map(item => item.zIndex)) + 1;
 const normalizeZIndex = () => sortedElements.value.forEach((item, index) => (item.zIndex = index + 1));
-const roundByGrid = (value: number) => (showGrid.value ? Math.round(value / gridSize.value) * gridSize.value : Math.round(value * 10) / 10);
 const clampToPaper = (value: number, axis: "x" | "y", item: QrLayoutElement) => {
   const max = axis === "x" ? template.value.paper.width - item.width : template.value.paper.height - item.height;
   return Math.min(Math.max(value, 0), Math.max(max, 0));
@@ -1958,6 +1982,7 @@ onMounted(async () => {
   try {
     await loadServerTemplates();
     await createFirstServerTemplateFromLocal();
+    if (!activeTemplateKey.value && templateOptions.value.length) useTemplate(templateOptions.value[0].key);
   } catch (error) {
     console.error(error);
     ElMessage.warning("后端模板加载失败，本地模板已保留");

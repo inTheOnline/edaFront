@@ -11,6 +11,7 @@
 - 不确定业务含义、字段语义、接口返回时，先问用户，不要自己拍板。
 
 ## 当前项目代码习惯
+- 所有数字输入框默认取消上下加减按钮：Element Plus 使用`:controls="false"`，Naive UI 使用`:show-button="false"`；原生`input[type="number"]`也不显示浏览器步进按钮。全局样式`src/styles/number-input.scss`覆盖已有页面，不改变原有精度、步长和范围。
 - 注释一定要用中文
 - 列表页统一大量使用 ProTable，columns 配置里直接带 search、enum、tag 等声明。
 - 页面普遍使用 script setup + TypeScript；业务逻辑常直接保留在 index.vue 中。

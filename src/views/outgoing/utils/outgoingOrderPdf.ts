@@ -1,5 +1,5 @@
 import { PdfService, type PdfDocumentDefinition } from "@/modules/document-pdf";
-import type { Content, TableCell } from "pdfmake/interfaces";
+import type { Content, ContentTable, TableCell } from "pdfmake/interfaces";
 import type { OutgoingOrder } from "../service";
 
 const MM = 72 / 25.4;
@@ -31,22 +31,25 @@ const headerCell = (value: string): TableCell => ({
   bold: true,
   margin: value.includes("\n") ? undefined : [0, 5, 0, 0]
 });
-const emptyRow = (columns: number): TableCell[] => Array.from({ length: columns }, () => cell("\u00a0"));
 
 export const buildOutgoingOrderPdfDefinition = (
   order: OutgoingOrder,
-  type: OutgoingOrderPdfType = "outgoing"
+  type: OutgoingOrderPdfType = "outgoing",
+  minRows = 5
 ): PdfDocumentDefinition => {
   const isReturnOrder = type === "return";
   const headers = isReturnOrder
-    ? ["物料编号", "物料名称", "加工工艺", "退货原因", "单位", "数量", "备注"]
+    ? ["序号", "物料编号", "物料名称", "加工工艺", "退货原因", "单位", "数量", "备注"]
     : ["序\n号", "品番号", "加工工艺", "单位", "数量", "吸塑\n规格", "吸塑\n数量", "纸箱\n规格", "纸箱\n数量", "小号\n胶框", "中号\n胶框", "隔板\n数量", "备注"];
-  const widths = isReturnOrder
-    ? [90, 95, 90, 115, 50, 60, 60]
+  const columnWeights = isReturnOrder
+    ? [25, 90, 95, 90, 115, 35, 60, 60]
     : [18, 76, 70, 30, 42, 47, 40, 55, 40, 36, 36, 36, 52];
+  const tableWidth = 220 * MM;
+  const weightSum = columnWeights.reduce((sum, width) => sum + width, 0);
+  const widths = columnWeights.map(width => width / weightSum * (tableWidth - columnWeights.length * 5.1 - 1.1));
   const rows = isReturnOrder
-    ? order.rows.map(row => [
-      cell(row.materNum, "importantCell"), cell(row.materName, "importantCell"), cell(row.workName, "importantCell"),
+    ? order.rows.map((row, index) => [
+      cell(index + 1), cell(row.materNum, "importantCell"), cell(row.materName, "importantCell"), cell(row.workName, "importantCell"),
       cell(row.returnReason), cell(row.unit), cell(row.number, "quantityCell"), cell(row.remark)
     ])
     : order.rows.map((row, index) => [
@@ -57,80 +60,108 @@ export const buildOutgoingOrderPdfDefinition = (
       cell(row.smallFrameQuantity), cell(row.mediumFrameQuantity), cell(row.spacerQuantity), cell(row.remark)
     ]);
 
+  const detailTable = (body: TableCell[][], header = false): ContentTable => ({
+    table: { widths, body: body.length ? body : [headers.map(() => cell("\u00a0"))] },
+    layout: {
+      hLineWidth: line => !header && line === 0 ? 0 : 1.1,
+      vLineWidth: () => 1.1,
+      hLineColor: () => "#333333",
+      vLineColor: () => "#333333",
+      paddingTop: () => header ? 5 : 3,
+      paddingBottom: () => header ? 5 : 3,
+      paddingLeft: () => 2,
+      paddingRight: () => 2
+    }
+  });
+
   return {
     pageSize: { width: 240 * MM, height: 140 * MM },
     pageOrientation: "landscape",
-    pageMargins: [5 * MM, 2 * MM, 15 * MM, 14 * MM],
+    pageMargins: [5 * MM, 3 * MM, 15 * MM, 20 * MM],
     defaultStyle: { font: "NotoSansSC", fontSize: 10 },
     background: () => [
       vertical("第一联存根", 231, 16),
       vertical("，第二联供应商", 231, 47),
       vertical("，第三联财务", 231, 91)
     ],
+    footer: (page, total) => ({
+      margin: [5 * MM, 3 * MM, 15 * MM, 0],
+      stack: [
+        {
+          columns: [
+            { text: "外协单位及经手人签收：", width: "*" },
+            { text: "仓库：", width: 130 },
+            { text: `制单：${text(order.creatorName)}`, width: 155 }
+          ],
+          fontSize: 11
+        },
+        { text: `页码：${page}/${total}`, alignment: "right", fontSize: 9, margin: [0, 12, 0, 0] }
+      ]
+    }),
     content: [
-      { text: "深圳市意达五金制品有限公司", alignment: "center", bold: true, fontSize: 22, margin: [0, 0, 0, 2] },
-      { text: "地址：深圳市光明新区公明街道上村莲塘工业区德兴工业园6B栋", alignment: "center", bold: false, fontSize: 12, margin: [0, 0, 0, 2] },
       {
-        columns: [
-          { text: "电话：0755-27193495", alignment: "right" },
-          { text: "传真：0755-27193285", alignment: "center" }
-        ],
-        columnGap: 50,
-        bold: false,
-        fontSize: 12,
-        margin: [70, 0, 60, 3]
-      },
-      { text: isReturnOrder ? "退货单" : "委外加工单", alignment: "center", bold: true, fontSize: 20, margin: [0, 0, 0, 2] },
-      { text: `NO. ${printNumber(order.printNum)}`, alignment: "right", bold: true, fontSize: 16, margin: [0, 0, 0, 2] },
-      {
-        columns: [
-          { text: `委外加工商：${text(order.supName)}`, fontSize: 16 },
-          { text: dateText(order.subcDate), alignment: "right", fontSize: 12 }
-        ],
-        bold: false,
-        margin: [0, 0, 10, 2]
-      },
-      {
+        // 完整抬头与列名一起重复，明细保持整行分页。
         table: {
           headerRows: 1,
           dontBreakRows: true,
-          widths,
+          keepWithHeaderRows: 1,
+          widths: [tableWidth],
           body: [
-            headers.map(headerCell),
-            ...rows,
-            ...Array.from({ length: Math.max(0, 5 - rows.length) }, () => emptyRow(headers.length))
+            [{ stack: [
+              { text: "深圳市意达五金制品有限公司", alignment: "center", bold: true, fontSize: 17, margin: [0, 0, 0, 1] },
+              { text: isReturnOrder ? "退货单" : "委外加工单", alignment: "center", bold: true, fontSize: 14, margin: [0, 0, 0, 2] },
+              { text: "地址：深圳市光明新区公明街道上村莲塘工业区德兴工业园6B栋", alignment: "center", fontSize: 9 },
+              { text: "电话：0755-27193495    传真：0755-27193285", alignment: "center", fontSize: 9, margin: [0, 0, 0, 3] },
+              {
+                columns: [
+                  { text: `委外加工商：${text(order.supName)}`, width: "*" },
+                  { text: dateText(order.subcDate), width: 115, alignment: "right" },
+                  { text: `NO. ${printNumber(order.printNum)}`, width: 160, alignment: "right", bold: true }
+                ],
+                fontSize: 10,
+                columnGap: 8,
+                margin: [0, 0, 0, 3]
+              },
+              { text: `整单备注：${text(order.subcRemark)}`, fontSize: 10, margin: [0, 0, 0, 4] },
+              detailTable([headers.map(headerCell)], true)
+            ] }],
+            ...rows.map(row => [detailTable([row])]),
+            ...Array.from({ length: Math.max(0, minRows - rows.length) }, () => [detailTable([headers.map(() => cell("\u00a0"))])])
           ]
         },
         layout: {
-          hLineWidth: () => 1.1,
-          vLineWidth: () => 1.1,
-          hLineColor: () => "#333333",
-          vLineColor: () => "#333333",
-          paddingTop: row => row === 0 ? 7 : 6,
-          paddingBottom: row => row === 0 ? 7 : 6,
-          paddingLeft: () => 2,
-          paddingRight: () => 2
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+          paddingLeft: () => 0,
+          paddingRight: () => 0
         }
-      },
-      {
-        columns: [
-          { text: "外协单位及经手人签收：", width: "*" },
-          { text: "仓库：", width: 150 },
-          { text: `制单：${text(order.creatorName)}`, width: 160 }
-        ],
-        font: "NotoSansSC",
-        bold: false,
-        fontSize: 17,
-        margin: [3, 8, 0, 0]
       }
     ],
     styles: {
-      tableHeader: { bold: true, fontSize: 12, alignment: "center" },
+      tableHeader: { bold: true, fontSize: 10, alignment: "center" },
       importantCell: { fontSize: 11 },
       numericCell: { fontSize: 12 },
       quantityCell: { fontSize: 11 }
     }
   };
+};
+
+export const fitOutgoingOrderPdf = async (
+  order: OutgoingOrder,
+  type: OutgoingOrderPdfType,
+  pageCount: (definition: PdfDocumentDefinition) => Promise<number>
+): Promise<PdfDocumentDefinition> => {
+  if (order.rows.length >= 5) return buildOutgoingOrderPdfDefinition(order, type);
+  // 用实际字体排版判断，保留不会增加页数的最多空白行。
+  const basePages = await pageCount(buildOutgoingOrderPdfDefinition(order, type, 0));
+  for (let minRows = 5; minRows > order.rows.length; minRows--) {
+    if (await pageCount(buildOutgoingOrderPdfDefinition(order, type, minRows)) <= basePages) {
+      return buildOutgoingOrderPdfDefinition(order, type, minRows);
+    }
+  }
+  return buildOutgoingOrderPdfDefinition(order, type, 0);
 };
 
 export const printOutgoingOrderPdf = async (order: OutgoingOrder, type: OutgoingOrderPdfType = "outgoing") => {
@@ -142,5 +173,18 @@ export const printOutgoingOrderPdf = async (order: OutgoingOrder, type: Outgoing
     italics: regularFont,
     bolditalics: boldFont
   };
-  await new PdfService("NotoSansSC", fontFiles).print(buildOutgoingOrderPdfDefinition(order, type));
+  const service = new PdfService("NotoSansSC", fontFiles);
+  const definition = await fitOutgoingOrderPdf(order, type, async definition => {
+    let pages = 0;
+    const footer = definition.footer;
+    await service.getBlob({
+      ...definition,
+      footer: (page, total, size) => {
+        pages = total;
+        return typeof footer === "function" ? footer(page, total, size) : footer || [];
+      }
+    });
+    return pages;
+  });
+  await service.print(definition);
 };

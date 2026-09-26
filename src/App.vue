@@ -1,6 +1,7 @@
 <template>
   <el-config-provider :locale="locale" :size="assemblySize" :button="buttonConfig">
     <router-view></router-view>
+    <OfficeNotice />
   </el-config-provider>
 </template>
 
@@ -14,6 +15,7 @@ import { LanguageType } from "./stores/interface";
 import { useGlobalStore } from "@/stores/modules/global";
 import en from "element-plus/es/locale/lang/en";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
+import OfficeNotice from "@/views/buy/buyForm/components/OfficeNotice.vue";
 
 const globalStore = useGlobalStore();
 

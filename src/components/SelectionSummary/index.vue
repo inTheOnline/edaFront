@@ -12,13 +12,14 @@
 import { CircleClose } from "@element-plus/icons-vue";
 
 defineProps<{
-  items: Array<{ label: string; value: number }>;
+  items: Array<{ label: string; value: number | string }>;
   disabled: boolean;
 }>();
 
 defineEmits<{ clear: [] }>();
 
-const formatNumber = (value: number) => Number(value || 0).toLocaleString("zh-CN", { maximumFractionDigits: 4 });
+const formatNumber = (value: number | string) =>
+  typeof value === "string" ? value : Number(value || 0).toLocaleString("zh-CN", { maximumFractionDigits: 4 });
 </script>
 
 <style scoped>

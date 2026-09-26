@@ -26,6 +26,7 @@ export interface RawMaterOption {
 }
 
 export interface RawMaterRelation {
+  rawId?: number;
   id?: number;
   materId?: number | string;
   materNum?: string;

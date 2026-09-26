@@ -197,9 +197,13 @@ const flatColumnsFunc = (columns: ColumnProps[], flatArr: ColumnProps[] = []) =>
   columns.forEach(async col => {
     if (col._children?.length) flatArr.push(...flatColumnsFunc(col._children));
     flatArr.push(col);
-    col.isShow = col.isShow ?? true;
-    col.isSetting = col.isSetting ?? true;
-    col.isFilterEnum = col.isFilterEnum ?? true;
+    if (String(col.label || "").includes("状态") && col.enum && !col.search?.render && (col.search?.el !== "select" || col.search?.props?.multiple !== true)) {
+      col.search = { ...col.search, el: "select", props: { ...col.search?.props, multiple: true, collapseTags: true } };
+      if (col.search.defaultValue != null && !Array.isArray(col.search.defaultValue)) col.search.defaultValue = [col.search.defaultValue];
+    }
+    col.isShow ??= true;
+    col.isSetting ??= true;
+    col.isFilterEnum ??= true;
     await setEnumMap(col);
   });
   return flatArr.filter(item => !item._children?.length);

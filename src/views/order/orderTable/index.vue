@@ -3,7 +3,7 @@
     <div>
       <!-- {{dictStore.loadDict('cust')}} -->
       <ProTable
-      class="protable"
+        class="protable"
         :columns="columns"
         :request-api="getOrderAll"
         :dataCallback="dataCallback"
@@ -12,7 +12,7 @@
         row-key="id"
         title="Outgoing-Form"
         ref="proTableRef"
-        striped=true
+        striped="true"
         :search-col="{ xs: 1, sm: 1, md: 3, lg: 4, xl: 4 }"
         @row-click="handleRowClick"
       >
@@ -35,24 +35,22 @@
         </template> -->
         <template #expand="scope">
           <div class="detail_panel">
-          
             <!-- 明细区域（重点） -->
-            <div class="detail_body">      
-              <el-table
-                :data="scope.row.maters"
-                class="inner_table"
-              >
+            <div class="detail_body">
+              <el-table :data="scope.row.maters" class="inner_table">
                 <el-table-column prop="materId" label="物料名称" />
                 <el-table-column prop="totalNumber" label="订单数量" />
                 <el-table-column prop="alreadyNumber" label="已交数量" />
                 <el-table-column prop="notAlreadyNumber" label="未交数量" />
+                <el-table-column v-if="canViewPrice" label="含税单价"
+                  ><template #default="{ row }">{{ formatPrice(row.price) }}</template></el-table-column
+                >
               </el-table>
               <div class="no_data" v-show="scope.row.maters.length == 0">
-              <SvgIcon name="table404" :icon-style="{ width: '100%' }" />
-              <p>暂无物料信息</p>
+                <SvgIcon name="table404" :icon-style="{ width: '100%' }" />
+                <p>暂无物料信息</p>
+              </div>
             </div>
-            </div>
-          
           </div>
         </template>
 
@@ -83,56 +81,77 @@
     </div>
     <UserDrawer ref="drawerRef" />
     <ImportExcel ref="dialogRef" />
-    <Dialog ref="leadRef" />
+    <CustomerOrderDialog ref="leadRef" />
     <QuickRequisitionDialog ref="quickRequisitionRef" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive,onMounted,computed } from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
 import ProTable from "@/components/ProTable/index.vue";
 import SelectionSummary from "@/components/SelectionSummary/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
-import { getOrderAll,getModel,addManyOrder,deleteMany,addOrder,editOrder,delect } from "@/api/modules/order";
+import { getOrderAll, getModel, addManyOrder, deleteMany, addOrder, editOrder, delect } from "@/api/modules/order";
 import { getDepartmentApi } from "@/api/modules/department";
 import { getStateApi } from "@/api/modules/outgoing";
 import * as XLSX from "xlsx";
 import UserDrawer from "@/views/order/orderTable/components/UserDrawer.vue";
-import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue"; 
+import { CirclePlus, Delete, EditPen, Download, Upload, View, Refresh } from "@element-plus/icons-vue";
 import { ElLoading, ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
-import {useMapStore} from '@/stores/modules/map'
-import {useDictStore} from '@/stores/modules/dict'
+import { useMapStore } from "@/stores/modules/map";
+import { useDictStore } from "@/stores/modules/dict";
 import SvgIcon from "@/components/SvgIcon/index.vue";
-import Dialog from "@/views/order/orderTable/components/Dialog.vue"; 
+import CustomerOrderDialog from "@/views/order/orderMater/components/BatchAddDialog.vue";
 import QuickRequisitionDialog from "@/views/order/orderTable/components/QuickRequisitionDialog.vue";
+import { sumAmounts, useOrderPrice } from "./components/useOrderPrice";
+const { canViewPrice, formatPrice } = useOrderPrice();
 const mapStote = useMapStore();
-const dictStore = useDictStore()
+const dictStore = useDictStore();
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const selectedList = computed<any[]>(() => proTableRef.value?.selectedList || []);
-const sumSelectedMaters = (field: string) => selectedList.value.reduce(
-  (total, row) => total + (row.maters || []).reduce((subtotal: number, item: any) => subtotal + Number(item[field] || 0), 0),
-  0
-);
+const sumSelectedMaters = (field: string) =>
+  selectedList.value.reduce(
+    (total, row) => total + (row.maters || []).reduce((subtotal: number, item: any) => subtotal + Number(item[field] || 0), 0),
+    0,
+  );
 const selectionSummary = computed(() => [
   { label: "订单数量", value: sumSelectedMaters("totalNumber") },
   { label: "已交数量", value: sumSelectedMaters("alreadyNumber") },
   { label: "未交数量", value: sumSelectedMaters("notAlreadyNumber") },
+  ...(canViewPrice.value
+    ? [
+        {
+          label: "含税金额",
+          value: sumAmounts(
+            selectedList.value.flatMap((row) =>
+              (row.maters || []).map((item: any) =>
+                item.price == null || item.notAlreadyNumber == null ? null : Number(item.price) * Number(item.notAlreadyNumber),
+              ),
+            ),
+          ),
+        },
+      ]
+    : []),
 ]);
-const leadRef =ref(null)
-const dataCallback = (data) => {    // 数据回调
-    return {
-      list: data.records,
-      total: data.total
-    };
+const leadRef = ref<InstanceType<typeof CustomerOrderDialog>>();
+const dataCallback = (data) => {
+  // 数据回调
+  return {
+    list: data.records,
+    total: data.total,
   };
+};
 onMounted(async () => {
-  await dictStore.loadDicts(['cust','user','mater']);
-  
+  await dictStore.loadDicts(["cust", "user", "mater"]);
 });
 const leadOrder = () => {
-  leadRef.value?.open();
+  leadRef.value?.open({
+    materList: dictStore.dictMap.mater || [],
+    getTableList: proTableRef.value?.getTableList,
+    withOrder: true,
+  });
 };
 const columns: ColumnProps[] = reactive([
   { type: "selection", label: "选择", prop: "id", align: "center" },
@@ -147,7 +166,7 @@ const columns: ColumnProps[] = reactive([
         prefixIcon: "search",
       },
     },
-    width: 150
+    width: 150,
   },
   {
     label: "开始时间",
@@ -167,25 +186,25 @@ const columns: ColumnProps[] = reactive([
   {
     label: "客户",
     prop: "custId",
-    enum: computed(() => dictStore.dictMap['cust']),
+    enum: computed(() => dictStore.dictMap["cust"]),
     // fieldNames: { label: "custName", value: "custId" },
     search: {
       el: "select",
-      enum: computed(() => dictStore.dictMap['cust']),
+      enum: computed(() => dictStore.dictMap["cust"]),
       tooltip: "输入客户进行搜索",
       props: {
         prefixIcon: "search",
       },
     },
-    width: 100
+    width: 100,
   },
   {
     label: "创建人",
     prop: "createUserId",
-    enum: computed(() => dictStore.dictMap['user']),
+    enum: computed(() => dictStore.dictMap["user"]),
     search: {
       el: "select",
-      enum: computed(() => dictStore.dictMap['user']),
+      enum: computed(() => dictStore.dictMap["user"]),
       tooltip: "输入创建人进行搜索",
       props: {
         prefixIcon: "search",
@@ -197,14 +216,14 @@ const columns: ColumnProps[] = reactive([
 
 // 打开抽屉
 const openDrawer = async (title: string, row: Object = {}) => {
-  const { data:departmentMap} = await getDepartmentApi()
-  const { data } = await getStateApi()
-   // 过滤出 value 能被 5 整除的对象
-   const stateMap = data.filter(item => item.value % 5 === 0);
+  const { data: departmentMap } = await getDepartmentApi();
+  const { data } = await getStateApi();
+  // 过滤出 value 能被 5 整除的对象
+  const stateMap = data.filter((item) => item.value % 5 === 0);
   const params = {
     title,
     isView: title === "查看",
-    row: { ...row },
+    row: { ...row, maters: (row as any).maters?.map((item) => ({ ...item })) },
     api: title === "新增" ? addOrder : title === "编辑" ? editOrder : undefined,
     getTableList: proTableRef.value?.getTableList,
   };
@@ -212,9 +231,9 @@ const openDrawer = async (title: string, row: Object = {}) => {
 };
 
 // 删除已选项目
-const deleteSelected = async(ids: number[]): Promise<void> => {
+const deleteSelected = async (ids: number[]): Promise<void> => {
   await deleteMany(ids);
-  ElMessage.success("删除订单成功！`")
+  ElMessage.success("删除订单成功！`");
   proTableRef.value?.getTableList();
 };
 // 导出订单列表
@@ -232,21 +251,34 @@ const downloadFile = async () => {
       ? (await getOrderAll({ ...searchParam, pageNum: 1, pageSize: firstPage.total } as any)).data.records
       : [];
     const getDictLabel = (type: string, value: unknown) =>
-      dictStore.dictMap[type]?.find(item => String(item.value) === String(value))?.label || value || "";
+      dictStore.dictMap[type]?.find((item) => String(item.value) === String(value))?.label || value || "";
     const worksheet = XLSX.utils.json_to_sheet(
-      records.map(item => ({
+      records.map((item) => ({
         订单编号: item.orderNum || "",
         开始时间: item.createTime || "",
         完成时间: item.lateTime || "",
         状态: item.stateLabel || item.stateName || item.state,
         客户: item.custName || getDictLabel("cust", item.custId),
-        创建人: item.createUserName || getDictLabel("user", item.createUserId)
+        创建人: item.createUserName || getDictLabel("user", item.createUserId),
       })),
-      { header: ["订单编号", "开始时间", "完成时间", "状态", "客户", "创建人"] }
+      { header: ["订单编号", "开始时间", "完成时间", "状态", "客户", "创建人"] },
     );
-    worksheet["!cols"] = [20, 20, 20, 14, 20, 16].map(wch => ({ wch }));
+    worksheet["!cols"] = [20, 20, 20, 14, 20, 16].map((wch) => ({ wch }));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "订单详情");
+    const detailSheet = XLSX.utils.json_to_sheet(
+      records.flatMap((order) =>
+        (order.maters || []).map((item) => ({
+          订单编号: order.orderNum,
+          产品: getDictLabel("mater", item.materId),
+          订单数量: item.totalNumber,
+          已交数量: item.alreadyNumber,
+          未交数量: item.notAlreadyNumber,
+          ...(canViewPrice.value ? { 含税单价: item.price } : {}),
+        })),
+      ),
+    );
+    XLSX.utils.book_append_sheet(workbook, detailSheet, "订单产品");
     XLSX.writeFile(workbook, `订单详情_${new Date().toISOString().slice(0, 10)}.xlsx`);
     ElMessage.success(`成功导出 ${records.length} 条数据`);
   } catch {
@@ -262,7 +294,7 @@ const batchAdd = () => {
     title: "订单",
     tempApi: getModel,
     importApi: addManyOrder,
-    getTableList: proTableRef.value?.getTableList
+    getTableList: proTableRef.value?.getTableList,
   };
   dialogRef.value?.acceptParams(params);
 };
@@ -285,7 +317,7 @@ const openQuickRequisition = () => quickRequisitionRef.value?.open(proTableRef.v
 // }
 /* 整体面板（关键：去卡片感） */
 .detail_panel {
-  padding:  0!important;
+  padding: 0 !important;
   background: #fff;
   padding: 16px 20px;
 }
@@ -293,7 +325,7 @@ const openQuickRequisition = () => quickRequisitionRef.value?.open(proTableRef.v
 /* 明细区域 */
 .detail_body {
   margin-left: 100px;
-  padding:  0!important;
+  padding: 0 !important;
   width: auto;
   background: #fff;
 }

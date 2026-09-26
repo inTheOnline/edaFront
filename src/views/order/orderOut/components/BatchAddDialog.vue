@@ -77,6 +77,7 @@
                   placeholder="请选择产品"
                   style="width: 100%"
                   filterable
+                  @change="selectProduct(row)"
                 >
                   <el-option
                     v-for="item in materList"
@@ -90,17 +91,36 @@
           </template>
         </el-table-column>
 
-        <!-- 剩余列：数量、备注、操作 完全不动 -->
+        <el-table-column label="客户" width="160">
+          <template #default="{ row }">
+            <span v-if="mode === 'withOrder'">{{ dict.getLabel("cust", row.custId) }}</span>
+            <el-select v-else v-model="row.custId" filterable placeholder="客户"
+              ><el-option v-for="item in dict.dictMap.cust || []" :key="item.value" :value="item.value" :label="item.label"
+            /></el-select>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="canViewPrice" label="含税单价" width="150">
+          <template #default="{ row }"
+            ><el-input-number
+              :key="`${mode}-${row.materId}-${row.priceLoading}-${row.priceError}`"
+              v-model="row.price"
+              :precision="4"
+              :min="0"
+              :controls="false"
+              :disabled="mode === 'withOrder' || !canEditPrice || row.priceLoading || row.priceError"
+              style="width: 100%"
+          /></template>
+        </el-table-column>
+        <!-- 数量和备注 -->
         <el-table-column label="送货数量" prop="number" align="center" width="100">
           <template #default="{ row }">
             <el-input
-              v-model.number="row.number"
-              type="number"
-              min="1"
-              :max="mode === 'withOrder' ? row.notAlreadyNumber : 999999"
-              placeholder=""
+              :model-value="row.numberExpression ?? row.number"
+              placeholder="如 1+1"
               style="width: 100%; text-align: right"
-              @input="handleNumberInput(row)"
+              @input="row.numberExpression = $event"
+              @blur="calculateNumber(row)"
+              @keydown.enter.prevent="calculateNumber(row)"
             />
           </template>
         </el-table-column>
@@ -134,10 +154,17 @@ import { ref, watch } from "vue";
 import { ElLoading, ElMessage } from "element-plus";
 import { addBatchApi } from "@/api/modules/orderOut";
 import ItemSelector from "./ItemSelector.vue";
+import { getOrderProductInfo } from "@/api/modules/order";
+import { useDictStore } from "@/stores/modules/dict";
+import { evaluateArithmetic } from "@/utils/arithmetic";
+import { useOrderPrice, loadProductPrice } from "@/views/order/orderTable/components/useOrderPrice";
+const dict = useDictStore();
+const { canViewPrice, canEditPrice } = useOrderPrice();
+const selectProduct = loadProductPrice;
 
 const visible = ref(false);
 const syncStock = ref(true);
-const materList = ref<{ value: number; label: string; num?: string }[]>([]);
+const materList = ref<{ value: number | string; label: string; num?: string }[]>([]);
 let getTableList: (() => void) | null = null;
 
 // 模式控制：默认【有订单】
@@ -156,12 +183,17 @@ const form = ref({
   num: "",
   records: [] as Array<{
     orderMaterId: number | null;
+    custId?: number | string | null;
+    price?: number | null;
+    priceLoading?: boolean;
+    priceError?: boolean;
     materId?: string | number;
     materNum?: string | number;
     orderId?: number | null;
     materName?: string;
     orderNum?: string;
     number: number | null;
+    numberExpression?: string;
     remark: string;
     notAlreadyNumber: number | null;
   }>,
@@ -197,11 +229,14 @@ const onSelectItems = (selectedList: any[]) => {
   if (selectedList.length === 1) {
     const item = selectedList[0];
     currentRow.value.orderMaterId = item.id;
+    currentRow.value.custId = item.custId;
+    currentRow.value.price = item.price;
     currentRow.value.materName = item.materName;
     currentRow.value.materNum = item.materNum;
     currentRow.value.orderNum = item.orderNum;
     currentRow.value.notAlreadyNumber = item.notAlreadyNumber; // 👈 存最大值
     currentRow.value.number = item.notAlreadyNumber; // 默认填最大值
+    currentRow.value.numberExpression = undefined;
     return;
   }
 
@@ -210,6 +245,8 @@ const onSelectItems = (selectedList: any[]) => {
   selectedList.forEach((item) => {
     form.value.records.push({
       orderMaterId: item.id,
+      custId: item.custId,
+      price: item.price,
       materName: item.materName,
       materNum: item.materNum,
       orderNum: item.orderNum,
@@ -226,10 +263,12 @@ const onSelectItems = (selectedList: any[]) => {
 // 切换模式时自动清空无关字段
 watch(mode, (newMode) => {
   form.value.records.forEach((row) => {
-    if (newMode === "withOrder") {
-      // 有订单：清空产品相关字段
-      row.materId = "";
-    } else {
+    row.price = undefined;
+    row.custId = undefined;
+    row.priceLoading = false;
+    row.priceError = false;
+    row.materId = "";
+    if (newMode === "withoutOrder") {
       // 无订单：清空订单相关字段
       row.orderMaterId = null;
       row.orderNum = "";
@@ -247,7 +286,11 @@ const disabledFutureDate = (time: Date) => {
 };
 
 // 打开弹窗
-const open = (params: { materList?: { value: number; label: string; num?: string }[]; getTableList?: () => void }) => {
+const open = async (params: {
+  materList?: { value: number | string; label: string; num?: string }[];
+  getTableList?: () => void;
+}) => {
+  await dict.loadDict("cust");
   visible.value = true;
   materList.value = params.materList || [];
   getTableList = params.getTableList || null;
@@ -257,7 +300,25 @@ const open = (params: { materList?: { value: number; label: string; num?: string
   form.value.records = [];
   addRow();
 };
-// 实时限制数量不超过可开单数量
+// 完成输入后计算，保留无效公式供用户修改；保存时也调用，避免提交旧数量。
+const calculateNumber = (row: (typeof form.value.records)[number]) => {
+  if (row.numberExpression === undefined) return true;
+  if (!row.numberExpression.trim()) {
+    row.number = null;
+    row.numberExpression = undefined;
+    return true;
+  }
+  const value = evaluateArithmetic(row.numberExpression);
+  if (value === null) {
+    ElMessage.warning("数量公式无效，请输入数字、加减乘除或括号，除数不能为零");
+    return false;
+  }
+  row.number = value;
+  row.numberExpression = undefined;
+  handleNumberInput(row);
+  return true;
+};
+// 计算后限制数量不超过可开单数量
 const handleNumberInput = (row: any) => {
   if (mode.value === "withoutOrder") return;
   if (!row.notAlreadyNumber) return;
@@ -290,6 +351,8 @@ const removeRow = (index: number) => {
 
 // 提交（根据模式适配字段）
 const submit = async () => {
+  if (form.value.records.some((row) => row.priceLoading || row.priceError))
+    return ElMessage.warning("请等待产品信息加载完成；加载失败时请重新选择产品");
   if (!form.value.date) {
     return ElMessage.warning("请选择出货日期");
   }
@@ -303,6 +366,7 @@ const submit = async () => {
   // 校验数据
   for (let i = 0; i < form.value.records.length; i++) {
     const item = form.value.records[i];
+    if (!calculateNumber(item)) return;
     if (!item.number || item.number <= 0) {
       ElMessage.warning(`第 ${i + 1} 行数量不能为空`);
       return;
@@ -312,12 +376,12 @@ const submit = async () => {
       return;
     }
     // 👇 新增：校验数量不能超过可开单数量
-    if (mode.value === "withOrder" && item.number > item.notAlreadyNumber) {
+    if (mode.value === "withOrder" && item.number > Number(item.notAlreadyNumber || 0)) {
       ElMessage.warning(`第 ${i + 1} 行数量不能超过可开单数量：${item.notAlreadyNumber}`);
       return;
     }
-    if (mode.value === "withoutOrder" && !item.materId) {
-      ElMessage.warning(`第 ${i + 1} 行未选择产品`);
+    if (mode.value === "withoutOrder" && (!item.materId || !item.custId)) {
+      ElMessage.warning(`第 ${i + 1} 行未选择产品或客户`);
       return;
     }
   }
@@ -338,6 +402,8 @@ const submit = async () => {
     } else {
       return {
         materId: r.materId,
+        custId: r.custId,
+        ...(canEditPrice.value ? { price: r.price } : {}),
         number: r.number,
         remark: r.remark,
         time: form.value.date,

@@ -29,7 +29,9 @@
           </el-button>
         </template>
         <!-- 2.表格数据操作按钮区域 -->
+        <template #utilWeight="{ row }">{{ row.utilWeight == null ? "" : Number(row.utilWeight).toFixed(4) }}</template>
         <template #operation="scope">
+          <el-button type="primary" link @click="viewRelations(scope.row)">查看关系</el-button>
           <el-button type="primary" link :icon="View" @click="openDrawer('查看', scope.row)">查看</el-button>
           <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', scope.row)">编辑</el-button>
           <el-button type="primary" link :icon="Delete" @click="deleteOne(scope.row.id)">删除</el-button>
@@ -43,9 +45,10 @@
 
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import ProTable from "@/components/ProTable/index.vue";
 import ImportExcel from "@/components/ImportExcel/index.vue";
-import { getAll, getModel, addMany, deleteMany, add, edit } from "@/api/modules/raw";
+import { getAll, getModel, addMany, deleteMany, edit, type RawInfo } from "@/api/modules/raw";
 import { useDownload } from "@/hooks/useDownload";
 import UserDrawer from "./components/UserDrawer.vue";
 import RawModuleHeader from "../components/RawModuleHeader.vue";
@@ -54,6 +57,10 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { ColumnProps } from "@/components/ProTable/interface";
 import { useDictStore } from "@/stores/modules/dict";
 const dictStore = useDictStore();
+const router = useRouter();
+const viewRelations = (row: RawInfo) => {
+  router.push({ path: "/godown/rawRelation", query: { rawId: row.id, rawNum: row.rawNum } });
+};
 const proTableRef = ref<InstanceType<typeof ProTable> | null>(null);
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 const dataCallback = (data) => {
@@ -112,7 +119,7 @@ const columns: ColumnProps[] = reactive([
     width: 250,
   },
   {
-    label: "单位重量",
+    label: "单位重量(kg)",
     prop: "utilWeight",
   },
   {
@@ -131,16 +138,16 @@ const columns: ColumnProps[] = reactive([
     label: "备注",
     prop: "remark",
   },
-  { prop: "operation", label: "操作", fixed: "right", width: 250 },
+  { prop: "operation", label: "操作", fixed: "right", width: 320 },
 ]);
 
 // 打开抽屉
-const openDrawer = async (title: string, row: Object = {}) => {
+const openDrawer = async (title: string, row: RawInfo = {}) => {
   const params = {
     title,
     isView: title === "查看",
     row: { ...row },
-    api: title === "新增" ? add : title === "编辑" ? edit : undefined,
+    api: title === "编辑" ? edit : undefined,
     getTableList: proTableRef.value?.getTableList,
   };
   drawerRef.value?.acceptParams(params);
