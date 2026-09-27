@@ -24,6 +24,8 @@ export interface AiSettings {
 export interface AiCapabilities {
   admin: boolean;
   canUse: boolean;
+  ready?: boolean;
+  reason?: string;
   apiConfigured: boolean;
   models: AiModel[];
   settings?: AiSettings;

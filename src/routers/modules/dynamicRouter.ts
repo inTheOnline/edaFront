@@ -25,13 +25,17 @@ export const initDynamicRouter = async () => {
     //我加的，获取
     await authStore.getAuthInfo();
 
-    // 内置 AI 入口不依赖 menu/meta 迁移；能力不可用时不影响其他业务路由。
-    authStore.aiCanUse = false;
+    // 入口按已验证的 ERP 身份展示；AI 尚未初始化时仍可进入查看原因，业务访问由后端校验。
+    const token = userStore.token;
+    authStore.aiCanUse = Number(authStore.userInfoGet.roleId) === 1 || authStore.userInfoGet.powers?.includes("ai:use") === true;
     try {
-      const token = userStore.token;
       const { data } = await getAiCapabilities(5000);
-      authStore.aiCanUse = token === userStore.token && (data.canUse === true || data.admin === true);
-    } catch { /* AI 尚未部署或暂不可用时保留既有 ERP 菜单。 */ }
+      authStore.aiCanUse = data.canUse === true;
+    } catch (error) {
+      const failure = error as { code?: string; response?: { status?: number } };
+      if (["401", "403"].includes(String(failure.response?.status || failure.code))) authStore.aiCanUse = false;
+    }
+    if (token !== userStore.token) authStore.aiCanUse = false;
     if (authStore.aiCanUse && !authStore.flatMenuListGet.some(item => item.path === "/ai/assistant")) {
       authStore.authMenuList.push({
         id: -1, path: "/ai/assistant", name: "aiAssistant", component: "/ai/assistant/index",

@@ -2,16 +2,17 @@
   <div v-loading="initializing" class="ai-page">
     <header class="page-header">
       <div><h1>AI 助手</h1><p>查询业务数据，查阅操作方法。</p></div>
-      <el-button v-if="capabilities?.admin" :icon="Setting" :disabled="sending" @click="adminVisible = true">AI 管理</el-button>
+      <el-button v-if="capabilities?.admin && serviceReady" :icon="Setting" :disabled="sending" @click="adminVisible = true">AI 管理</el-button>
     </header>
     <el-alert v-if="pageError" :title="pageError" type="error" :closable="false"><template #default><el-button link type="primary" @click="initialize">重新加载</el-button></template></el-alert>
     <el-alert v-if="capabilities && !capabilities.canUse" title="尚未开通 AI 使用权限，请联系管理员。" type="warning" :closable="false" />
+    <el-alert v-else-if="capabilities?.ready === false" :title="capabilities.reason || 'AI 服务尚未初始化，暂时无法创建会话或生成回答。'" type="warning" :closable="false"><template #default><el-button link type="primary" @click="initialize">重新检查</el-button></template></el-alert>
     <el-alert v-else-if="capabilities && !capabilities.apiConfigured" title="模型 API 尚未配置，暂时无法生成回答。" type="info" :closable="false" />
     <el-alert v-else-if="capabilities?.settings && !capabilities.settings.enabled" title="AI 服务已停用。" type="info" :closable="false" />
     <el-alert v-else-if="capabilities && !selectedModel" title="暂无已启用的模型，请联系管理员核对模型目录。" type="warning" :closable="false" />
     <div v-if="capabilities?.canUse" class="workspace">
       <aside class="conversation-panel">
-        <div class="conversation-heading"><h2>会话</h2><el-button :icon="Plus" :disabled="sending || loadingMessages" @click="newConversation">新建会话</el-button></div>
+        <div class="conversation-heading"><h2>会话</h2><el-button :icon="Plus" :disabled="!serviceReady || sending || loadingMessages" @click="newConversation">新建会话</el-button></div>
         <el-empty v-if="!conversations.length" description="暂无会话" :image-size="64" />
         <nav v-else class="conversation-list" aria-label="历史会话">
           <div v-for="conversation in conversations" :key="conversation.id" class="conversation-row" :class="{ selected: selectedId === conversation.id }">
@@ -24,12 +25,12 @@
         <div class="chat-heading">
           <div><h2>{{ currentTitle }}</h2><span class="scope-hint">{{ selectedId ? '历史消息按当前权限展示，部分内容可能已不可见' : '依据当前账号权限查询' }}</span></div>
           <div v-if="capabilities.admin" class="model-controls">
-            <el-select v-model="modelId" aria-label="模型" :disabled="sending" @change="syncEffort"><el-option v-for="model in availableModels" :key="model.id" :label="model.name" :value="model.id" /></el-select>
-            <el-select v-model="effort" aria-label="推理强度" :disabled="sending"><el-option v-for="value in selectedModel?.efforts || []" :key="value" :label="value" :value="value" /></el-select>
-            <el-select v-model="mode" aria-label="工作模式" :disabled="sending"><el-option label="标准" value="STANDARD" /><el-option label="Ultra" value="ULTRA" :disabled="!selectedModel?.ultra" /></el-select>
+            <el-select v-model="modelId" aria-label="模型" :disabled="!serviceReady || sending" @change="syncEffort"><el-option v-for="model in availableModels" :key="model.id" :label="model.name" :value="model.id" /></el-select>
+            <el-select v-model="effort" aria-label="推理强度" :disabled="!serviceReady || sending"><el-option v-for="value in selectedModel?.efforts || []" :key="value" :label="value" :value="value" /></el-select>
+            <el-select v-model="mode" aria-label="工作模式" :disabled="!serviceReady || sending"><el-option label="标准" value="STANDARD" /><el-option label="Ultra" value="ULTRA" :disabled="!selectedModel?.ultra" /></el-select>
           </div>
           <el-tag v-else type="info">{{ defaultModelName }}</el-tag>
-          <el-button text :icon="Refresh" :disabled="sending || loadingMessages" aria-label="刷新权限与历史" title="刷新权限与历史" @click="refreshHistory" />
+          <el-button text :icon="Refresh" :disabled="!serviceReady || sending || loadingMessages" aria-label="刷新权限与历史" title="刷新权限与历史" @click="refreshHistory" />
         </div>
         <div ref="messageList" v-loading="loadingMessages" class="message-list" role="log" aria-label="对话内容" :aria-busy="sending">
           <section v-if="!messages.length && !loadingMessages" class="empty-chat">
@@ -53,7 +54,7 @@
         </form>
       </main>
     </div>
-    <AdminPanel v-if="capabilities?.admin" v-model="adminVisible" :api-configured="capabilities.apiConfigured" @changed="refreshCapabilities" />
+    <AdminPanel v-if="capabilities?.admin && serviceReady" v-model="adminVisible" :api-configured="capabilities.apiConfigured" @changed="refreshCapabilities" />
   </div>
 </template>
 
@@ -81,7 +82,8 @@ const availableModels = computed(() => capabilities.value?.models.filter(model =
 const selectedModel = computed(() => availableModels.value.find(model => model.id === modelId.value));
 const defaultModelName = computed(() => capabilities.value?.models.find(model => model.id === capabilities.value?.settings?.defaultModel)?.name || "系统默认模型");
 const currentTitle = computed(() => conversations.value.find(item => item.id === selectedId.value)?.title || "新会话");
-const canSend = computed(() => Boolean(capabilities.value?.canUse && capabilities.value.apiConfigured && capabilities.value.settings?.enabled && selectedModel.value));
+const serviceReady = computed(() => Boolean(capabilities.value?.canUse && capabilities.value.ready !== false && capabilities.value.settings));
+const canSend = computed(() => Boolean(serviceReady.value && capabilities.value?.apiConfigured && capabilities.value.settings?.enabled && selectedModel.value));
 const examples = ["胜蓝有哪些未交订单？", "如何录入采购单？", "查询本月生产进度"];
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : (error as { message?: string })?.message || "请求失败，请重试";
 const formatTime = (value?: string) => value ? value.replace("T", " ").slice(0, 16) : "";
@@ -92,27 +94,42 @@ function syncEffort() {
   if (!selectedModel.value?.efforts.includes(effort.value)) effort.value = selectedModel.value?.efforts[0] || "";
   if (!selectedModel.value?.ultra) mode.value = "STANDARD";
 }
+function clearAiState() {
+  loadVersion++; loadingMessages.value = false;
+  capabilities.value = undefined; messages.value = []; conversations.value = []; selectedId.value = undefined;
+  modelId.value = ""; effort.value = ""; mode.value = "STANDARD"; adminVisible.value = false;
+}
 async function loadCapabilities() {
   const token = user.token;
-  const data = (await getAiCapabilities()).data;
-  if (token !== user.token) return;
-  capabilities.value = data;
-  auth.aiCanUse = data.canUse === true || data.admin === true;
-  if (!data.canUse) { modelId.value = ""; effort.value = ""; mode.value = "STANDARD"; return; }
-  if (!data.settings) throw new Error("AI 配置未返回，请刷新后重试");
-  if (!modelId.value || !data.models.some(model => model.id === modelId.value && model.enabled) || !data.admin) {
-    modelId.value = data.settings.defaultModel; effort.value = data.settings.defaultEffort;
+  try {
+    const data = (await getAiCapabilities()).data;
+    if (token !== user.token) return;
+    if (!data.canUse || data.ready === false) clearAiState();
+    capabilities.value = data; auth.aiCanUse = data.canUse === true; pageError.value = "";
+    if (!data.canUse || data.ready === false) return;
+    if (!data.settings) throw new Error("AI 配置未返回，请刷新后重试");
+    if (!modelId.value || !data.models.some(model => model.id === modelId.value && model.enabled) || !data.admin) {
+      modelId.value = data.settings.defaultModel; effort.value = data.settings.defaultEffort;
+    }
+    syncEffort();
+  } catch (error) {
+    if (token !== user.token) return;
+    clearAiState();
+    const failure = error as { code?: string; response?: { status?: number } };
+    if (["401", "403"].includes(String(failure.response?.status || failure.code))) auth.aiCanUse = false;
+    pageError.value = errorMessage(error);
+    throw error;
   }
-  syncEffort();
 }
 async function refreshCapabilities() {
+  pageError.value = "";
   try { await loadCapabilities(); }
   catch (error) { pageError.value = errorMessage(error); }
 }
 async function refreshHistory() {
   try {
     await loadCapabilities();
-    if (!capabilities.value?.canUse) { messages.value = []; conversations.value = []; return; }
+    if (!serviceReady.value) { messages.value = []; conversations.value = []; return; }
     if (selectedId.value) await selectConversation(selectedId.value);
   } catch (error) { chatError.value = errorMessage(error); }
 }
@@ -121,7 +138,7 @@ async function initialize() {
   initializing.value = true; pageError.value = "";
   try {
     await loadCapabilities();
-    if (capabilities.value?.canUse) {
+    if (serviceReady.value) {
       const data = (await getAiConversations()).data;
       if (token !== user.token) return;
       conversations.value = data;
@@ -232,7 +249,7 @@ function stopOnLeave() {
   controller?.abort();
 }
 watch(() => user.token, () => {
-  stopOnLeave(); loadVersion++; conversations.value = []; messages.value = []; capabilities.value = undefined; draft.value = ""; adminVisible.value = false;
+  stopOnLeave(); clearAiState(); auth.aiCanUse = false; draft.value = ""; pageError.value = ""; chatError.value = "";
 });
 onMounted(initialize);
 onDeactivated(stopOnLeave);

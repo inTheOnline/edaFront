@@ -10,7 +10,9 @@
 ## 接口与入口
 
 - API 封装为 `src/api/modules/ai.ts`；页面组件路径 `/ai/assistant/index`，路由名称 `aiAssistant`。
-- 动态路由初始化读取后端 capabilities，仅为 canUse/admin 用户追加内置 AI 菜单，无需 menu/meta/power 数据迁移；专用 `aiCanUse` 只控制此路径，其他业务沿用原路由授权。AI 能力不可用时保留既有 ERP 菜单。
+- 动态路由初始化读取后端 capabilities，按 canUse 展示内置 AI 菜单，无需 menu/meta/power 数据迁移。接口暂不可用时，仅已通过 ERP 身份验证的超级管理员或拥有 `ai:use` 的用户保留入口，进入后显示错误原因；明确拒绝或登录失效不回退。专用 `aiCanUse` 只控制此路径，其他业务沿用原路由授权。
+- capabilities 使用 `ready:false/reason` 表示数据库或配置尚未初始化；入口仍可见，页面不请求会话、知识、模型管理，也不能发送提问。`ready` 缺省时兼容已返回完整 settings 的旧版接口。数据库未就绪与 API Key 未配置分别显示提示。
+- 页面刷新能力失败时清空旧能力、会话、消息和模型选择，关闭管理抽屉，并在页面顶部显示可重试错误，避免沿用之前的可发送状态。401/403 同时隐藏入口；其他临时故障保留入口。用户切换、权限失效和未就绪响应会使尚未完成的旧历史请求失效，旧用户的能力响应不能写回新用户页面。
 - `GET /ai/capabilities` 返回当前用户能力、可用模型和设置，权限判断以后端为准。
 - `GET/POST /ai/conversations`、`DELETE /ai/conversations/{id}`、`GET /ai/conversations/{id}/messages` 管理会话。
 - `POST /ai/chat` 使用 fetch + token 请求头读取 SSE：start/status/delta/evidence/done/error/clarification。
