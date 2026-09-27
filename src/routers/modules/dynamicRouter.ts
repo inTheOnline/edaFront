@@ -5,6 +5,7 @@ import { ElNotification } from "element-plus";
 import { useUserStore } from "@/stores/modules/user";
 import { useAuthStore } from "@/stores/modules/auth";
 import { hasRoutePermission } from "@/utils";
+import { getAiCapabilities } from "@/api/modules/ai";
 
 // 引入 views 文件夹下所有 vue 文件
 const modules = import.meta.glob("@/views/**/*.vue");
@@ -23,6 +24,20 @@ export const initDynamicRouter = async () => {
     // await authStore.getAuthButtonList();
     //我加的，获取
     await authStore.getAuthInfo();
+
+    // 内置 AI 入口不依赖 menu/meta 迁移；能力不可用时不影响其他业务路由。
+    authStore.aiCanUse = false;
+    try {
+      const token = userStore.token;
+      const { data } = await getAiCapabilities(5000);
+      authStore.aiCanUse = token === userStore.token && (data.canUse === true || data.admin === true);
+    } catch { /* AI 尚未部署或暂不可用时保留既有 ERP 菜单。 */ }
+    if (authStore.aiCanUse && !authStore.flatMenuListGet.some(item => item.path === "/ai/assistant")) {
+      authStore.authMenuList.push({
+        id: -1, path: "/ai/assistant", name: "aiAssistant", component: "/ai/assistant/index",
+        meta: { icon: "ChatDotRound", title: "AI 助手", isHide: false, isFull: false, isAffix: false, isKeepAlive: false, roles: "" }
+      });
+    }
 
     // 2.判断当前用户有没有菜单权限
     if (!authStore.authMenuListGet.length) {

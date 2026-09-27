@@ -7,6 +7,7 @@ import { getDefaultInfoApi } from "@/api/modules/mySystem/users";
 export const useAuthStore = defineStore({
   id: "geeker-auth",
   state: (): AuthState => ({
+    aiCanUse: false,
     // 按钮权限列表
     authButtonList: {},
     // 菜单权限列表

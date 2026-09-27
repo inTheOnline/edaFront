@@ -180,6 +180,8 @@ export function getShowMenuList(menuList: Menu.MenuOptions[]) {
 }
 
 export function hasRoutePermission(item: Menu.MenuOptions, powers: string[]) {
+  // AI 为按后端能力开放的内置入口，其余菜单仍沿用数据库路由权限。
+  if (item.path === "/ai/assistant" && item.name === "aiAssistant") return useAuthStore().aiCanUse;
   return powers.includes(`route:${item.id}`);
 }
 

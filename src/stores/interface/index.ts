@@ -49,6 +49,7 @@ export interface TabsState {
 
 /* AuthState */
 export interface AuthState {
+  aiCanUse: boolean;
   routeName: string;
   authButtonList: {
     [key: string]: string[];

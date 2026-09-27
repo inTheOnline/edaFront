@@ -119,6 +119,12 @@ const enabledUserCount = computed(() => {
 // 本次改动：额外权限统一在这里配置，后续新增权限类型只要追加一个分组并让后端接收同名 key。
 const extraPermissionGroups = [
   {
+    key: "ai",
+    title: "AI 助手",
+    summary: "控制业务查询与操作知识问答入口",
+    options: [{ label: "使用 AI 助手", value: "ai:use", description: "在已有业务权限范围内查询数据和操作方法" }]
+  },
+  {
     key: "productionEfficiency", title: "生产效率", summary: "控制效率查看、异常核实、数据更正和标准确认",
     options: [
       { label: "查看生产效率", value: "production:eff:view", description: "查看效率首页、标准依据与历史结果" },
